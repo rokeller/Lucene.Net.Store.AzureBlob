@@ -5,7 +5,12 @@
     <RootNamespace>Lucene.Net.Store</RootNamespace>
     <AssemblyName>Lucene.Net.Store.AzureBlob</AssemblyName>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Authors>Roger Keller</Authors>
+    <PackageDescription>Provides a Lucene.Net index Directory which persists data in Azure Blobs.</PackageDescription>
+    <PackageTags>lucene.net;lucene;directory;azure;blob;blobs;azuredirectory</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
