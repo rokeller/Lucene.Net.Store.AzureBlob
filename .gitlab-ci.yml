@@ -10,6 +10,10 @@ cache:
 
 build and test:
   stage: build
+  services:
+    - name: mcr.microsoft.com/azure-storage/azurite:latest
+      alias: azurite
+      command: ["-l", "/data", "--blobHost", "0.0.0.0"]
   artifacts:
     paths:
       - TestResults/
