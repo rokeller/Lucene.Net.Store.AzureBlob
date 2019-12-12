@@ -27,15 +27,30 @@
             "type": "shell",
             "args": [
                 "test",
-                "/p:CollectCoverage=true",
+                "--filter",
+                "Classification!=LongRunning",
+                "-p:CollectCoverage=true",
                 // "/p:CoverletOutputFormat=\"lcovc,opencover\"", // See workaround below.
-                "/p:CoverletOutputFormat=\"lcov%2copencover\"",
-                "/p:CoverletOutput=../../TestResults/"
+                "-p:CoverletOutputFormat=\"lcov%2copencover\"",
+                "-p:CoverletOutput=../../TestResults/"
             ],
             "group": {
                 "kind": "test",
                 "isDefault": true
             }
+        },
+        {
+            "label": "test_all",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "test",
+                "/p:CollectCoverage=true",
+                // "/p:CoverletOutputFormat=\"lcovc,opencover\"", // See workaround below.
+                "/p:CoverletOutputFormat=\"lcov%2copencover\"",
+                "/p:CoverletOutput=../../TestResults/"
+            ],
+            "group": "test"
         }
     ]
 }
