@@ -9,10 +9,10 @@ namespace Lucene.Net.Store
         private readonly CloudBlockBlob blob;
         private readonly Stream stream;
 
-        public AzureBlobIndexInput(CloudBlockBlob blob) : base(blob.Uri.OriginalString)
+        public AzureBlobIndexInput(CloudBlockBlob blob, Stream stream) : base(blob.Uri.OriginalString)
         {
             this.blob = blob;
-            stream = blob.OpenRead();
+            this.stream = stream;
         }
 
         public override long Length => blob.Properties.Length;
@@ -55,7 +55,8 @@ namespace Lucene.Net.Store
         public override object Clone()
         {
             // TODO: Do this right: Keep track of the master input, and dispose all clones when the master is disposed.
-            AzureBlobIndexInput clone = new AzureBlobIndexInput(blob);
+            Stream stream = blob.OpenRead();
+            AzureBlobIndexInput clone = new AzureBlobIndexInput(blob, stream);
 
             clone.stream.Seek(stream.Position, SeekOrigin.Begin);
 

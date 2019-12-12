@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
@@ -25,6 +26,28 @@ namespace Lucene.Net.Store
         {
             using (dir) { }
             blobContainer.DeleteIfExists();
+        }
+
+        [Fact]
+        public void FileLengthReturnsCorrectLength()
+        {
+            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("sample-file");
+            int len = 100 + Utils.Rng.Next(1234);
+            using (Stream stream = blob.OpenWrite())
+            {
+                stream.Write(Utils.GenerateRandomBuffer(len), 0, len);
+            }
+
+            dir = new AzureBlobDirectory(blobContainer, null);
+            Assert.Equal((long)len, dir.FileLength("sample-file"));
+        }
+
+        [Fact]
+        public void FileLengthThrowsWhenBlobDoesNotExist()
+        {
+            dir = new AzureBlobDirectory(blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
+
+            Assert.Throws<FileNotFoundException>(() => dir.FileLength("does-not-exist"));
         }
 
         [Theory]

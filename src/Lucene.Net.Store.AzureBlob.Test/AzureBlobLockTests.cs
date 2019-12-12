@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Lucene.Net.Store.AzureBlob.Test
 {
-    public sealed class AzureBlobLockTests
+    public sealed class AzureBlobLockTests : IDisposable
     {
         private readonly CloudBlobContainer blobContainer;
         private AzureBlobLock theLock;
@@ -61,6 +61,7 @@ namespace Lucene.Net.Store.AzureBlob.Test
             mockBlob.Setup(b => b.UploadFromByteArray(It.Is<byte[]>(buf => buf.Length == 0), 0, 0, null, null, null));
             mockBlob.Setup(b => b.AcquireLease(TimeSpan.FromMinutes(1), null, null, null, null))
                 .Throws(new StorageException(new RequestResult() { HttpStatusCode = 409, }, "Injected error", null));
+            mockBlob.Setup(b => b.Delete(DeleteSnapshotsOption.None, It.Is<AccessCondition>(c => c.LeaseId == null), null, null));
 
             Assert.False(theLock.Obtain());
 
@@ -79,6 +80,7 @@ namespace Lucene.Net.Store.AzureBlob.Test
             mockBlob.Setup(b => b.AcquireLease(TimeSpan.FromMinutes(1), null, null, null, null))
                 .Returns("the-lease-id");
             mockBlob.Setup(b => b.RenewLease(It.Is<AccessCondition>(ac => ac.LeaseId == "the-lease-id"), null, null));
+            mockBlob.Setup(b => b.Delete(DeleteSnapshotsOption.None, It.Is<AccessCondition>(c => c.LeaseId == "the-lease-id"), null, null));
 
             Assert.True(theLock.Obtain());
             Thread.Sleep(TimeSpan.FromSeconds(55.1));

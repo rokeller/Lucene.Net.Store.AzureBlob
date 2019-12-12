@@ -1,9 +1,10 @@
+using System;
 using Microsoft.Azure.Storage.Blob;
 using Xunit;
 
 namespace Lucene.Net.Store.AzureBlob.Test
 {
-    public sealed class AzureBlobLockFactoryTests
+    public sealed class AzureBlobLockFactoryTests : IDisposable
     {
         private readonly CloudBlobContainer blobContainer;
         private readonly string lockName = Utils.GenerateRandomString(10);

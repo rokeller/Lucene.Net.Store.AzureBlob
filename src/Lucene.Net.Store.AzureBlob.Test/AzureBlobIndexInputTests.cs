@@ -34,7 +34,8 @@ namespace Lucene.Net.Store
 
             blob.UploadFromByteArray(Utils.GenerateRandomBuffer(len), 0, len);
 
-            input = new AzureBlobIndexInput(blob);
+            Stream stream = blob.OpenRead();
+            input = new AzureBlobIndexInput(blob, stream);
 
             if (len > 1)
             {

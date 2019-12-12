@@ -16,7 +16,11 @@ namespace Lucene.Net.Store
         {
             this.blobContainer = blobContainer;
 
-            if (!blobPrefix.EndsWith("/"))
+            if (null == blobPrefix)
+            {
+                blobPrefix = String.Empty;
+            }
+            else if (!blobPrefix.EndsWith("/"))
             {
                 blobPrefix += "/";
             }
@@ -81,9 +85,10 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            CloudBlockBlob blob = GetBlobWithMetaOrThrowIfNotFound(name);
+            Stream stream;
+            CloudBlockBlob blob = GetBlobWithStreamOrThrowIfNotFound(name, out stream);
 
-            return new AzureBlobIndexInput(blob);
+            return new AzureBlobIndexInput(blob, stream);
         }
 
         public override void Sync(ICollection<string> names)
@@ -115,6 +120,22 @@ namespace Lucene.Net.Store
             try
             {
                 blob.FetchAttributes();
+            }
+            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
+            {
+                throw new FileNotFoundException($"The blob '{blob.Name}' does not exist.", name, ex);
+            }
+
+            return blob;
+        }
+
+        private CloudBlockBlob GetBlobWithStreamOrThrowIfNotFound(string name, out Stream stream)
+        {
+            CloudBlockBlob blob = GetBlob(name);
+
+            try
+            {
+                stream = blob.OpenRead();
             }
             catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
             {
