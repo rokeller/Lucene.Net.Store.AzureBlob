@@ -19,8 +19,8 @@ build and test:
   artifacts:
     paths:
       - TestResults/
-      - '**/*.nupkg'
-      - '**/*.snupkg'
+      - '$CI_PROJECT_DIR/**/*.nupkg'
+      - '$CI_PROJECT_DIR/**/*.snupkg'
   coverage: '/^\|\s+Total\s+\|\s+\d+\.?\d+%\s+\|\s+(\d+\.?\d+)%\s+\|\s+\d+\.?\d+%\s+\|$/'
   before_script:
     - ". build/prepare.sh"
