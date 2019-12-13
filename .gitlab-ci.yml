@@ -33,8 +33,7 @@ build and test:
 publish nuget packages:
   stage: publish
   rules:
-    - if: '$CI_COMMIT_REF_PROTECTED && $CI_JOB_MANUAL'
-      when: always
-    - when: never
+    - when: manual
   script:
+    - "printenv"
     - "dotnet nuget push **/*.nupkg -s https://api.nuget.org/v3/index.json -k $NUGET_API_KEY"
