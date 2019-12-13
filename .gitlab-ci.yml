@@ -19,19 +19,22 @@ build and test:
   artifacts:
     paths:
       - TestResults/
-      - '$CI_PROJECT_DIR/**/*.nupkg'
-      - '$CI_PROJECT_DIR/**/*.snupkg'
+      - Packages/
   coverage: '/^\|\s+Total\s+\|\s+\d+\.?\d+%\s+\|\s+(\d+\.?\d+)%\s+\|\s+\d+\.?\d+%\s+\|$/'
   before_script:
     - ". build/prepare.sh"
   script:
     - "dotnet build -c $FLAVOR $BUILD_ARGS"
     - "dotnet test  -c $FLAVOR $TEST_ARGS"
+    - "mkdir Packages/ || true"
+    - "cp $(find ./ -name *.*nupkg -print) Packages/"
 
 publish nuget packages:
   stage: publish
   rules:
-    - when: manual
+    - if: '$CI_COMMIT_REF_PROTECTED == "true" && $CI_PIPELINE_SOURCE != "push"'
+      when: on_success
+    - when: never
   script:
     - "printenv"
     - "dotnet nuget push **/*.nupkg -s https://api.nuget.org/v3/index.json -k $NUGET_API_KEY"
