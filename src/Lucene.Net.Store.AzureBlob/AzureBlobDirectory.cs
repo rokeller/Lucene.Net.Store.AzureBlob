@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Lucene.Net.Index;
 using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
 
@@ -11,8 +14,14 @@ namespace Lucene.Net.Store
     {
         private readonly CloudBlobContainer blobContainer;
         private readonly string blobPrefix;
+        private readonly AzureBlobDirectoryOptions options;
+        private readonly ConcurrentDictionary<string, CachedInput> cachedInputs = new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
 
-        public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix)
+        public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix) : this(blobContainer, blobPrefix, null)
+        {
+        }
+
+        public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix, AzureBlobDirectoryOptions options)
         {
             this.blobContainer = blobContainer;
 
@@ -26,6 +35,7 @@ namespace Lucene.Net.Store
             }
 
             this.blobPrefix = blobPrefix;
+            this.options = options ?? new AzureBlobDirectoryOptions();
 
             SetLockFactory(new AzureBlobLockFactory(blobContainer));
         }
@@ -86,7 +96,14 @@ namespace Lucene.Net.Store
             EnsureOpen();
 
             Stream stream;
-            CloudBlockBlob blob = GetBlobWithStreamOrThrowIfNotFound(name, out stream);
+            CachedInput cachedInput;
+            CloudBlockBlob blob = GetBlobWithStreamOrThrowIfNotFound(name, out stream, out cachedInput);
+
+            if (null == blob && null != cachedInput)
+            {
+                // We had a hit in the cache, so let's use the cached file.
+                return new RAMInputStream(name, cachedInput.File);
+            }
 
             return new AzureBlobIndexInput(blob, stream);
         }
@@ -129,20 +146,59 @@ namespace Lucene.Net.Store
             return blob;
         }
 
-        private CloudBlockBlob GetBlobWithStreamOrThrowIfNotFound(string name, out Stream stream)
+        private CloudBlockBlob GetBlobWithStreamOrThrowIfNotFound(string name, out Stream stream, out CachedInput cachedInput)
         {
             CloudBlockBlob blob = GetBlob(name);
+            AccessCondition accessCondition = null;
+
+            if (cachedInputs.Count > 0 && cachedInputs.TryGetValue(name, out cachedInput))
+            {
+                // Use an access condition with 'If-None-Match' using the ETag of the currently cached version.
+                accessCondition = AccessCondition.GenerateIfNoneMatchCondition(cachedInput.ETag);
+            }
+            else
+            {
+                cachedInput = null;
+            }
 
             try
             {
-                stream = blob.OpenRead();
+                stream = blob.OpenRead(accessCondition);
+            }
+            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 304) // Condition not met: The ETag hasn't changed, return the cached data.
+            {
+                // No need to download the data again, since it hasn't changed.
+                Debug.Assert(null != cachedInput, "The cached input must not be null.");
+                stream = null;
+
+                return null;
             }
             catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
             {
                 throw new FileNotFoundException($"The blob '{blob.Name}' does not exist.", name, ex);
             }
 
+            if (ShouldCache(name))
+            {
+                // Download the file into the cache, and serve it from there.
+                cachedInput = CachedInput.Create(name, blob, stream);
+                cachedInputs[name] = cachedInput;
+                stream = null;
+
+                return null;
+            }
+
             return blob;
+        }
+
+        private bool ShouldCache(string name)
+        {
+            if (options.CacheSegmentsGen)
+            {
+                return StringComparer.Ordinal.Equals(name, IndexFileNames.SEGMENTS_GEN);
+            }
+
+            return false;
         }
 
         private IEnumerable<CloudBlob> ListBlobs()

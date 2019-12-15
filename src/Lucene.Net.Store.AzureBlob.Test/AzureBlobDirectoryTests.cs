@@ -170,5 +170,44 @@ namespace Lucene.Net.Store
                 Assert.Equal(ids[0], doc.Get("id"));
             }
         }
+
+        [Fact]
+        public void CachingOfSegmentsGenWorks()
+        {
+            AzureBlobDirectoryOptions options = new AzureBlobDirectoryOptions()
+            {
+                CacheSegmentsGen = true,
+            };
+            dir = new AzureBlobDirectory(blobContainer, "CachingOfSegmentsGenWorks", options);
+
+            IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
+            {
+                OpenMode = OpenMode.CREATE_OR_APPEND,
+            };
+
+            using (IndexWriter writer = new IndexWriter(dir, writerConfig))
+            {
+                writer.AddDocument(new Document()
+                {
+                    new StringField("id", Utils.GenerateRandomString(10), Field.Store.YES),
+                });
+            }
+
+#pragma warning disable 618
+            Assert.True(dir.FileExists(IndexFileNames.SEGMENTS_GEN));
+#pragma warning restore 618
+
+            // The segments.gen file should not be cached yet.
+            using (DirectoryReader reader = DirectoryReader.Open(dir))
+            {
+                Assert.Equal(1, reader.NumDocs);
+            }
+
+            // The segments.gen file should be cached now.
+            using (DirectoryReader reader = DirectoryReader.Open(dir))
+            {
+                Assert.Equal(1, reader.NumDocs);
+            }
+        }
     }
 }

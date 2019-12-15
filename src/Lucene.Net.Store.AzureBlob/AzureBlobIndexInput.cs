@@ -36,12 +36,7 @@ namespace Lucene.Net.Store
 
         public override void ReadBytes(byte[] b, int offset, int len)
         {
-            do
-            {
-                int read = stream.Read(b, offset, len);
-                offset += read;
-                len -= read;
-            } while (len > 0);
+            stream.FillBuffer(b, offset, len);
         }
 
         public override void Seek(long pos)
