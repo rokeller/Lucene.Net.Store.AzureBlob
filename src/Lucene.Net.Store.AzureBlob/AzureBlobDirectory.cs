@@ -10,11 +10,8 @@ using Microsoft.Azure.Storage.Blob;
 
 namespace Lucene.Net.Store
 {
-    public class AzureBlobDirectory : BaseDirectory
+    public class AzureBlobDirectory : AzureBlobDirectoryBase
     {
-        private readonly CloudBlobContainer blobContainer;
-        private readonly string blobPrefix;
-        private readonly AzureBlobDirectoryOptions options;
         private readonly ConcurrentDictionary<string, CachedInput> cachedInputs = new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
 
         public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix) : this(blobContainer, blobPrefix, null)
@@ -22,30 +19,10 @@ namespace Lucene.Net.Store
         }
 
         public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix, AzureBlobDirectoryOptions options)
-        {
-            this.blobContainer = blobContainer;
-
-            if (null == blobPrefix)
-            {
-                blobPrefix = String.Empty;
-            }
-            else if (!blobPrefix.EndsWith("/"))
-            {
-                blobPrefix += "/";
-            }
-
-            this.blobPrefix = blobPrefix;
-            this.options = options ?? new AzureBlobDirectoryOptions();
-
-            SetLockFactory(new AzureBlobLockFactory(blobContainer));
-        }
+        : base(blobContainer, blobPrefix, options)
+        { }
 
         #region Directory Implementation
-
-        public override string GetLockID()
-        {
-            return $"{blobPrefix}AzureBlobDirectory[{blobContainer.Uri.Host}][{blobContainer.Name}]";
-        }
 
         public override IndexOutput CreateOutput(string name, IOContext context)
         {
@@ -58,9 +35,7 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            CloudBlockBlob blob = GetBlob(name);
-
-            blob.DeleteIfExists();
+            DeleteFileAsync(name).SafeWait();
         }
 
         [Obsolete("this method will be removed in 5.0")]
@@ -68,18 +43,14 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            CloudBlockBlob blob = GetBlob(name);
-
-            return blob.Exists();
+            return FileExistsAsync(name).SafeWait();
         }
 
         public override long FileLength(string name)
         {
             EnsureOpen();
 
-            CloudBlockBlob blob = GetBlobWithMetaOrThrowIfNotFound(name);
-
-            return blob.Properties.Length;
+            return GetFileLengthAsync(name).SafeWait();
         }
 
         public override string[] ListAll()
@@ -124,27 +95,6 @@ namespace Lucene.Net.Store
         #endregion
 
         #region Private Methods
-
-        private CloudBlockBlob GetBlob(string name)
-        {
-            return blobContainer.GetBlockBlobReference(blobPrefix + name);
-        }
-
-        private CloudBlockBlob GetBlobWithMetaOrThrowIfNotFound(string name)
-        {
-            CloudBlockBlob blob = GetBlob(name);
-
-            try
-            {
-                blob.FetchAttributes();
-            }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
-            {
-                throw new FileNotFoundException($"The blob '{blob.Name}' does not exist.", name, ex);
-            }
-
-            return blob;
-        }
 
         private CloudBlockBlob GetBlobWithStreamOrThrowIfNotFound(string name, out Stream stream, out CachedInput cachedInput)
         {
@@ -193,22 +143,12 @@ namespace Lucene.Net.Store
 
         private bool ShouldCache(string name)
         {
-            if (options.CacheSegmentsGen)
+            if (Options.CacheSegmentsGen)
             {
                 return StringComparer.Ordinal.Equals(name, IndexFileNames.SEGMENTS_GEN);
             }
 
             return false;
-        }
-
-        private IEnumerable<CloudBlob> ListBlobs()
-        {
-            return blobContainer.ListBlobs(blobPrefix, false, BlobListingDetails.None).OfType<CloudBlob>();
-        }
-
-        private string ExtractBlobName(CloudBlob blob)
-        {
-            return Path.GetFileName(blob.Name);
         }
 
         #endregion
