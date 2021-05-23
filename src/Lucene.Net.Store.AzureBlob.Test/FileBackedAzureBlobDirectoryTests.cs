@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
@@ -10,17 +11,22 @@ using Xunit;
 namespace Lucene.Net.Store
 {
     [Collection("AppInsights")]
-    public sealed class AzureBlobDirectoryTests : TestBase, IDisposable
+    public sealed class FileBackedAzureBlobDirectoryTests : TestBase, IDisposable
     {
         private readonly CloudBlobContainer blobContainer;
-        private AzureBlobDirectory dir;
+        private readonly DirectoryInfo rootDir;
+        private readonly FSDirectory fsDirectory;
+        private FileBackedAzureBlobDirectory dir;
 
-        public AzureBlobDirectoryTests(AppInsightsFixture appInsightsFixture)
+        public FileBackedAzureBlobDirectoryTests(AppInsightsFixture appInsightsFixture)
         : base(appInsightsFixture)
         {
             CloudBlobClient blobClient = Utils.GetBlobClient();
+            int random = Utils.GenerateRandomInt(1000);
+            rootDir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "filebackedazureblobdirectory-test-" + random));
+            fsDirectory = FSDirectory.Open(rootDir);
 
-            blobContainer = blobClient.GetContainerReference("azureblobdirectory-test-" + Utils.GenerateRandomInt(1000));
+            blobContainer = blobClient.GetContainerReference("filebackedazureblobdirectory-test-" + random);
             blobContainer.CreateIfNotExists();
         }
 
@@ -28,7 +34,19 @@ namespace Lucene.Net.Store
         {
             using (dir) { }
             blobContainer.DeleteIfExists();
+            rootDir.Refresh();
+            if (rootDir.Exists)
+            {
+                rootDir.Delete(recursive: true);
+            }
             base.Dispose();
+        }
+
+        [Fact]
+        public void CtorValidatesInput()
+        {
+            Assert.Throws<ArgumentNullException>("fsDirectory", () => new FileBackedAzureBlobDirectory(null, blobContainer, null));
+            Assert.Throws<ArgumentNullException>("blobContainer", () => new FileBackedAzureBlobDirectory(fsDirectory, null, null));
         }
 
         [Fact]
@@ -41,14 +59,14 @@ namespace Lucene.Net.Store
                 stream.Write(Utils.GenerateRandomBuffer(len), 0, len);
             }
 
-            dir = new AzureBlobDirectory(blobContainer, null);
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, null);
             Assert.Equal((long)len, dir.FileLength("sample-file"));
         }
 
         [Fact]
         public void FileLengthThrowsWhenBlobDoesNotExist()
         {
-            dir = new AzureBlobDirectory(blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
 
             Assert.Throws<FileNotFoundException>(() => dir.FileLength("does-not-exist"));
         }
@@ -58,7 +76,7 @@ namespace Lucene.Net.Store
         [InlineData("random")]
         public void FileExistsReturnsFalseWhenFilesDoNotExist(string name)
         {
-            dir = new AzureBlobDirectory(blobContainer, "FileExistsReturnsFalseWhenFilesDoNotExist");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "FileExistsReturnsFalseWhenFilesDoNotExist");
 
 #pragma warning disable 618
             Assert.False(dir.FileExists(name));
@@ -68,7 +86,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void FileExistsWorks()
         {
-            dir = new AzureBlobDirectory(blobContainer, "FileExistsWorks");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "FileExistsWorks");
 
             IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
             {
@@ -98,7 +116,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void WriteThenReadWorks()
         {
-            dir = new AzureBlobDirectory(blobContainer, "WriteThenReadWorks");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "WriteThenReadWorks");
 
             string[] ids = { Utils.GenerateRandomString(10), Utils.GenerateRandomString(10), Utils.GenerateRandomString(10), };
 
@@ -181,7 +199,7 @@ namespace Lucene.Net.Store
             {
                 CacheSegmentsGen = true,
             };
-            dir = new AzureBlobDirectory(blobContainer, "CachingOfSegmentsGenWorks", options);
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "CachingOfSegmentsGenWorks", options);
 
             IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
             {
@@ -210,6 +228,83 @@ namespace Lucene.Net.Store
             using (DirectoryReader reader = DirectoryReader.Open(dir))
             {
                 Assert.Equal(1, reader.NumDocs);
+            }
+        }
+
+        [Fact]
+        public void OpenInputThrowsForMissingFilesOnFsDirectory()
+        {
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "OpenInputThrowsForMissingFiles");
+
+            Assert.Throws<DirectoryNotFoundException>(() => dir.OpenInput("does-not-exist", IOContext.DEFAULT));
+        }
+
+        [Fact]
+        public void OpenInputThrowsForMissingFilesInAzure()
+        {
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "OpenInputThrowsForMissingFiles");
+
+            if (!fsDirectory.Directory.Exists)
+            {
+                fsDirectory.Directory.Create();
+            }
+
+            Assert.Throws<FileNotFoundException>(() => dir.OpenInput("does-not-exist", IOContext.DEFAULT));
+        }
+
+        [Fact]
+        public void SyncDoesNotUploadFilesThatExistExceptForSegmentsGen()
+        {
+            List<string> filesToSync = new List<string>() { "random", IndexFileNames.SEGMENTS_GEN };
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "SyncDoesNotUploadFilesThatExistExceptForSegmentsGen");
+
+            if (!fsDirectory.Directory.Exists)
+            {
+                fsDirectory.Directory.Create();
+            }
+
+            using (IndexOutput random = dir.CreateOutput("random", IOContext.DEFAULT))
+            {
+                random.WriteString("This is random v1");
+            }
+            using (IndexOutput segmentsGen = dir.CreateOutput(IndexFileNames.SEGMENTS_GEN, IOContext.DEFAULT))
+            {
+                segmentsGen.WriteString("This is segments.gen v1");
+            }
+
+            dir.Sync(filesToSync);
+
+            using (IndexInput random = dir.OpenInput("random", IOContext.DEFAULT))
+            {
+                Assert.Equal("This is random v1", random.ReadString());
+            }
+            using (IndexInput random = dir.OpenInput(IndexFileNames.SEGMENTS_GEN, IOContext.DEFAULT))
+            {
+                Assert.Equal("This is segments.gen v1", random.ReadString());
+            }
+
+            // Update the files.
+            using (IndexOutput random = dir.CreateOutput("random", IOContext.DEFAULT))
+            {
+                random.WriteString("This is random v2");
+            }
+            using (IndexOutput segmentsGen = dir.CreateOutput(IndexFileNames.SEGMENTS_GEN, IOContext.DEFAULT))
+            {
+                segmentsGen.WriteString("This is segments.gen v2");
+            }
+
+            dir.Sync(filesToSync);
+            // Delete the files in the fsDirectory so they must be downloaded again.
+            fsDirectory.DeleteFile("random");
+            fsDirectory.DeleteFile(IndexFileNames.SEGMENTS_GEN);
+
+            using (IndexInput random = dir.OpenInput("random", IOContext.DEFAULT))
+            {
+                Assert.Equal("This is random v1", random.ReadString());
+            }
+            using (IndexInput random = dir.OpenInput(IndexFileNames.SEGMENTS_GEN, IOContext.DEFAULT))
+            {
+                Assert.Equal("This is segments.gen v2", random.ReadString());
             }
         }
     }

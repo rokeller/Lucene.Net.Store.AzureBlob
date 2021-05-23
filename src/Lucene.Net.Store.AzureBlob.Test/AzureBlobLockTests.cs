@@ -7,23 +7,26 @@ using Xunit;
 
 namespace Lucene.Net.Store.AzureBlob.Test
 {
-    public sealed class AzureBlobLockTests : IDisposable
+    [Collection("AppInsights")]
+    public sealed class AzureBlobLockTests : TestBase, IDisposable
     {
         private readonly CloudBlobContainer blobContainer;
         private AzureBlobLock theLock;
 
-        public AzureBlobLockTests()
+        public AzureBlobLockTests(AppInsightsFixture appInsightsFixture)
+        : base(appInsightsFixture)
         {
             CloudBlobClient blobClient = Utils.GetBlobClient();
 
-            blobContainer = blobClient.GetContainerReference("azurebloblock-test");
+            blobContainer = blobClient.GetContainerReference("azurebloblock-test-" + Utils.GenerateRandomInt(1000));
             blobContainer.CreateIfNotExists();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             using (theLock) { }
             blobContainer.DeleteIfExists();
+            base.Dispose();
         }
 
         [Fact]

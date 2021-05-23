@@ -5,23 +5,26 @@ using Xunit;
 
 namespace Lucene.Net.Store
 {
-    public sealed class AzureBlobIndexInputTests : IDisposable
+    [Collection("AppInsights")]
+    public sealed class AzureBlobIndexInputTests : TestBase, IDisposable
     {
         private readonly CloudBlobContainer blobContainer;
         private AzureBlobIndexInput input;
 
-        public AzureBlobIndexInputTests()
+        public AzureBlobIndexInputTests(AppInsightsFixture appInsightsFixture)
+        : base(appInsightsFixture)
         {
             CloudBlobClient blobClient = Utils.GetBlobClient();
 
-            blobContainer = blobClient.GetContainerReference("azureblobindexinput-test");
+            blobContainer = blobClient.GetContainerReference("azureblobindexinput-test-" + Utils.GenerateRandomInt(1000));
             blobContainer.CreateIfNotExists();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             using (input) { }
             blobContainer.DeleteIfExists();
+            base.Dispose();
         }
 
         [Theory]

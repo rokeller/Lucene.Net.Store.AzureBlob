@@ -48,5 +48,15 @@ namespace Lucene.Net.Store
 
             return buffer;
         }
+
+        public static int GenerateRandomInt(int max)
+        {
+            return GenerateRandomInt(0, max);
+        }
+
+        public static int GenerateRandomInt(int min, int max)
+        {
+            return Rng.Next(min, max);
+        }
     }
 }

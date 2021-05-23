@@ -1,49 +1,60 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.Storage.Blob;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Lucene.Net.Store
 {
-    public class ConcurrencyTests : IDisposable
+    [Collection("AppInsights")]
+    public abstract class ConcurrencyTests : TestBase, IDisposable
     {
-        private readonly CloudBlobContainer blobContainer1;
-        private readonly CloudBlobContainer blobContainer2;
-        private AzureBlobDirectory dir1;
-        private AzureBlobDirectory dir2;
-        private readonly ITestOutputHelper output;
 
-        public ConcurrencyTests(ITestOutputHelper output)
+        private readonly CloudBlobContainer blobContainer;
+        private readonly ITestOutputHelper output;
+        private readonly IOperationHolder<RequestTelemetry> telemetryHolder;
+        private Directory dir1;
+        private Directory dir2;
+
+        protected ConcurrencyTests(AppInsightsFixture appInsightsFixture, ITestOutputHelper output)
+        : base(appInsightsFixture)
         {
             this.output = output;
 
-            // Create two references to the same blob container, just in case.
-            blobContainer1 = Utils.GetBlobClient().GetContainerReference("concurrency-test");
-            blobContainer2 = Utils.GetBlobClient().GetContainerReference("concurrency-test");
-            blobContainer1.CreateIfNotExists();
+            int random = Utils.GenerateRandomInt(1000);
+
+            blobContainer = Utils.GetBlobClient().GetContainerReference("concurrency-test-" + random);
+            blobContainer.CreateIfNotExists();
 
             string prefix = Utils.GenerateRandomString(8);
-            dir1 = new AzureBlobDirectory(blobContainer1, prefix);
-            dir2 = new AzureBlobDirectory(blobContainer2, prefix);
+            dir1 = GetDirectory(blobContainer.Name, prefix);
+            dir2 = GetDirectory(blobContainer.Name, prefix);
+
+            telemetryHolder = appInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>($"Test | {GetType().Name}");
         }
 
-        public void Dispose()
+        protected abstract Directory GetDirectory(string containerName, string prefix);
+
+        public override void Dispose()
         {
+            telemetryHolder.Dispose();
+
             using (dir1) { }
             using (dir2) { }
 
-            blobContainer1.DeleteIfExists();
+            blobContainer.DeleteIfExists();
+            base.Dispose();
         }
 
-        [Fact]
-        public async Task ConcurrentWritesArePreventedByRemoteLock()
+        protected async Task ConcurrentWritesArePreventedByRemoteLock()
         {
             string[] keys = { "azure-blob-dir1", "azure-blob-dir2", };
 

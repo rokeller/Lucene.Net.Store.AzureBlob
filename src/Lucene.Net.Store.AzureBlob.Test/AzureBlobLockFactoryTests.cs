@@ -4,24 +4,27 @@ using Xunit;
 
 namespace Lucene.Net.Store.AzureBlob.Test
 {
-    public sealed class AzureBlobLockFactoryTests : IDisposable
+    [Collection("AppInsights")]
+    public sealed class AzureBlobLockFactoryTests : TestBase, IDisposable
     {
         private readonly CloudBlobContainer blobContainer;
         private readonly string lockName = Utils.GenerateRandomString(10);
         private AzureBlobLockFactory factory;
 
-        public AzureBlobLockFactoryTests()
+        public AzureBlobLockFactoryTests(AppInsightsFixture appInsightsFixture)
+        : base(appInsightsFixture)
         {
             CloudBlobClient blobClient = Utils.GetBlobClient();
 
-            blobContainer = blobClient.GetContainerReference("azurebloblockfactory-test");
+            blobContainer = blobClient.GetContainerReference("azurebloblockfactory-test-" + Utils.GenerateRandomInt(1000));
             blobContainer.CreateIfNotExists();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             factory.ClearLock(lockName);
             blobContainer.DeleteIfExists();
+            base.Dispose();
         }
 
         [Fact]
