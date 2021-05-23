@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.DependencyCollector;
 using Microsoft.ApplicationInsights.Extensibility;
@@ -15,20 +16,25 @@ namespace Lucene.Net.Store
 
         public AppInsightsFixture()
         {
+            TelemetryConfiguration configuration = TelemetryConfiguration.CreateDefault();
+
             string instrumentationKey = Environment.GetEnvironmentVariable("INSTRUMENTATION_KEY");
             if (String.IsNullOrWhiteSpace(instrumentationKey))
             {
-                instrumentationKey = "INVALID_KEY";
+                configuration.InstrumentationKey = "INVALID_KEY";
+                configuration.TelemetryChannel = new NullTelemetryChannel();
+            }
+            else
+            {
+                configuration.InstrumentationKey = instrumentationKey;
             }
 
-            TelemetryConfiguration configuration = TelemetryConfiguration.CreateDefault();
-            configuration.InstrumentationKey = instrumentationKey;
             configuration.TelemetryInitializers.Add(new HttpDependenciesParsingTelemetryInitializer());
 
             telemetryClient = new TelemetryClient(configuration);
             dependencyTrackingTelemetryModule = InitializeDependencyTracking(configuration);
 
-            Console.WriteLine("Telemetry is now setup for instrumentation key '{0}'.", instrumentationKey);
+            Console.WriteLine("Telemetry is now setup for instrumentation key '{0}'.", configuration.InstrumentationKey);
             telemetryClient.TrackTrace("Telemetry is now setup", SeverityLevel.Information);
         }
 
@@ -56,5 +62,23 @@ namespace Lucene.Net.Store
     public sealed class AppInsightsCollection : ICollectionFixture<AppInsightsFixture>
     {
         // Intentionally left blank -- This is for tracking only.
+    }
+
+    internal sealed class NullTelemetryChannel : ITelemetryChannel
+    {
+        public bool? DeveloperMode { get; set; }
+        public string EndpointAddress { get; set; }
+
+        public void Dispose()
+        {
+        }
+
+        public void Flush()
+        {
+        }
+
+        public void Send(ITelemetry item)
+        {
+        }
     }
 }
