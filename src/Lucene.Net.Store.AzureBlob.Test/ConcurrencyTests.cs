@@ -20,7 +20,7 @@ namespace Lucene.Net.Store
 
         private readonly CloudBlobContainer blobContainer;
         private readonly ITestOutputHelper output;
-        private readonly IOperationHolder<RequestTelemetry> telemetryHolder;
+        // private readonly IOperationHolder<RequestTelemetry> telemetryHolder;
         private Directory dir1;
         private Directory dir2;
 
@@ -38,14 +38,14 @@ namespace Lucene.Net.Store
             dir1 = GetDirectory(blobContainer.Name, prefix);
             dir2 = GetDirectory(blobContainer.Name, prefix);
 
-            telemetryHolder = appInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>($"Test | {GetType().Name}");
+            // telemetryHolder = appInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>($"Test | {GetType().Name}");
         }
 
         protected abstract Directory GetDirectory(string containerName, string prefix);
 
         public override void Dispose()
         {
-            telemetryHolder.Dispose();
+            // telemetryHolder.Dispose();
 
             using (dir1) { }
             using (dir2) { }

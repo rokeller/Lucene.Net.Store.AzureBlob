@@ -11,51 +11,51 @@ namespace Lucene.Net.Store
 {
     public sealed class AppInsightsFixture : IDisposable
     {
-        private readonly TelemetryClient telemetryClient;
-        private readonly DependencyTrackingTelemetryModule dependencyTrackingTelemetryModule;
+        // private readonly TelemetryClient telemetryClient;
+        // private readonly DependencyTrackingTelemetryModule dependencyTrackingTelemetryModule;
 
-        public AppInsightsFixture()
-        {
-            TelemetryConfiguration configuration = TelemetryConfiguration.CreateDefault();
+        // public AppInsightsFixture()
+        // {
+        //     TelemetryConfiguration configuration = TelemetryConfiguration.CreateDefault();
 
-            string instrumentationKey = Environment.GetEnvironmentVariable("INSTRUMENTATION_KEY");
-            if (String.IsNullOrWhiteSpace(instrumentationKey))
-            {
-                configuration.InstrumentationKey = "INVALID_KEY";
-                configuration.TelemetryChannel = new NullTelemetryChannel();
-            }
-            else
-            {
-                configuration.InstrumentationKey = instrumentationKey;
-            }
+        //     string instrumentationKey = Environment.GetEnvironmentVariable("INSTRUMENTATION_KEY");
+        //     if (String.IsNullOrWhiteSpace(instrumentationKey))
+        //     {
+        //         configuration.InstrumentationKey = "INVALID_KEY";
+        //         configuration.TelemetryChannel = new NullTelemetryChannel();
+        //     }
+        //     else
+        //     {
+        //         configuration.InstrumentationKey = instrumentationKey;
+        //     }
 
-            configuration.TelemetryInitializers.Add(new HttpDependenciesParsingTelemetryInitializer());
+        //     configuration.TelemetryInitializers.Add(new HttpDependenciesParsingTelemetryInitializer());
 
-            telemetryClient = new TelemetryClient(configuration);
-            dependencyTrackingTelemetryModule = InitializeDependencyTracking(configuration);
+        //     telemetryClient = new TelemetryClient(configuration);
+        //     dependencyTrackingTelemetryModule = InitializeDependencyTracking(configuration);
 
-            Console.WriteLine("Telemetry is now setup for instrumentation key '{0}'.", configuration.InstrumentationKey);
-            telemetryClient.TrackTrace("Telemetry is now setup", SeverityLevel.Information);
-        }
+        //     Console.WriteLine("Telemetry is now setup for instrumentation key '{0}'.", configuration.InstrumentationKey);
+        //     telemetryClient.TrackTrace("Telemetry is now setup", SeverityLevel.Information);
+        // }
 
         public void Dispose()
         {
-            dependencyTrackingTelemetryModule.Dispose();
-            Console.WriteLine("Flushing telemetry ...");
-            telemetryClient.Flush();
-            Thread.Sleep(TimeSpan.FromSeconds(5));
-            Console.WriteLine("Finished.");
+            // dependencyTrackingTelemetryModule.Dispose();
+            // Console.WriteLine("Flushing telemetry ...");
+            // telemetryClient.Flush();
+            // Thread.Sleep(TimeSpan.FromSeconds(5));
+            // Console.WriteLine("Finished.");
         }
 
-        public TelemetryClient TelemetryClient => telemetryClient;
-        private static DependencyTrackingTelemetryModule InitializeDependencyTracking(TelemetryConfiguration configuration)
-        {
-            DependencyTrackingTelemetryModule module = new DependencyTrackingTelemetryModule();
+        // public TelemetryClient TelemetryClient => telemetryClient;
+        // private static DependencyTrackingTelemetryModule InitializeDependencyTracking(TelemetryConfiguration configuration)
+        // {
+        //     DependencyTrackingTelemetryModule module = new DependencyTrackingTelemetryModule();
 
-            module.Initialize(configuration);
+        //     module.Initialize(configuration);
 
-            return module;
-        }
+        //     return module;
+        // }
     }
 
     [CollectionDefinition("AppInsights")]
