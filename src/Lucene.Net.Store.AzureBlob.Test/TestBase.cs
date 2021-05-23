@@ -1,8 +1,8 @@
 using System;
 using System.Reflection;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights.Extensibility;
+// using Microsoft.ApplicationInsights;
+// using Microsoft.ApplicationInsights.DataContracts;
+// using Microsoft.ApplicationInsights.Extensibility;
 using Xunit.Sdk;
 
 namespace Lucene.Net.Store

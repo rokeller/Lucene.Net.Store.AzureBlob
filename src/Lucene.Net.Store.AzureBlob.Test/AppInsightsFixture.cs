@@ -1,10 +1,10 @@
 using System;
 using System.Threading;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.Channel;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights.DependencyCollector;
-using Microsoft.ApplicationInsights.Extensibility;
+// using Microsoft.ApplicationInsights;
+// using Microsoft.ApplicationInsights.Channel;
+// using Microsoft.ApplicationInsights.DataContracts;
+// using Microsoft.ApplicationInsights.DependencyCollector;
+// using Microsoft.ApplicationInsights.Extensibility;
 using Xunit;
 
 namespace Lucene.Net.Store
@@ -64,21 +64,21 @@ namespace Lucene.Net.Store
         // Intentionally left blank -- This is for tracking only.
     }
 
-    internal sealed class NullTelemetryChannel : ITelemetryChannel
-    {
-        public bool? DeveloperMode { get; set; }
-        public string EndpointAddress { get; set; }
+    // internal sealed class NullTelemetryChannel : ITelemetryChannel
+    // {
+    //     public bool? DeveloperMode { get; set; }
+    //     public string EndpointAddress { get; set; }
 
-        public void Dispose()
-        {
-        }
+    //     public void Dispose()
+    //     {
+    //     }
 
-        public void Flush()
-        {
-        }
+    //     public void Flush()
+    //     {
+    //     }
 
-        public void Send(ITelemetry item)
-        {
-        }
-    }
+    //     public void Send(ITelemetry item)
+    //     {
+    //     }
+    // }
 }
