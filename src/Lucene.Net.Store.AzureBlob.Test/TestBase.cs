@@ -7,7 +7,7 @@ using Xunit.Sdk;
 
 namespace Lucene.Net.Store
 {
-    [TraceRequest]
+    // [TraceRequest]
     public abstract class TestBase : IDisposable
     {
         // [ThreadStatic]
@@ -27,21 +27,21 @@ namespace Lucene.Net.Store
         // internal static AppInsightsFixture CurrentAppInsightsFixture => appInsightsFixture;
     }
 
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
-    internal sealed class TraceRequestAttribute : BeforeAfterTestAttribute
-    {
-        // [ThreadStatic]
-        // private static IOperationHolder<RequestTelemetry> telemetryHolder;
+    // [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+    // internal sealed class TraceRequestAttribute : BeforeAfterTestAttribute
+    // {
+    //     // [ThreadStatic]
+    //     // private static IOperationHolder<RequestTelemetry> telemetryHolder;
 
-        public override void Before(MethodInfo methodUnderTest)
-        {
-            // string name = $"{methodUnderTest.DeclaringType.Name}.{methodUnderTest.Name}";
-            // telemetryHolder = TestBase.CurrentAppInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>("Test | " + name);
-        }
+    //     public override void Before(MethodInfo methodUnderTest)
+    //     {
+    //         // string name = $"{methodUnderTest.DeclaringType.Name}.{methodUnderTest.Name}";
+    //         // telemetryHolder = TestBase.CurrentAppInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>("Test | " + name);
+    //     }
 
-        public override void After(MethodInfo methodUnderTest)
-        {
-            // telemetryHolder?.Dispose();
-        }
-    }
+    //     public override void After(MethodInfo methodUnderTest)
+    //     {
+    //         // telemetryHolder?.Dispose();
+    //     }
+    // }
 }
