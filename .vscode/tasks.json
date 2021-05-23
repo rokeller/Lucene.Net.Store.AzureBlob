@@ -23,34 +23,45 @@
         },
         {
             "label": "test",
-            "command": "dotnet",
             "type": "shell",
+            "command": "./dotnet-with-env.sh",
             "args": [
                 "test",
                 "--filter",
                 "Classification!=LongRunning",
                 "-p:CollectCoverage=true",
-                // "/p:CoverletOutputFormat=\"lcovc,opencover\"", // See workaround below.
                 "-p:CoverletOutputFormat=\"lcov%2copencover\"",
                 "-p:CoverletOutput=../../TestResults/"
             ],
             "group": {
                 "kind": "test",
                 "isDefault": true
-            }
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "build"
+            ]
         },
         {
             "label": "test_all",
-            "command": "dotnet",
             "type": "shell",
+            "command": "./dotnet-with-env.sh",
             "args": [
                 "test",
                 "/p:CollectCoverage=true",
-                // "/p:CoverletOutputFormat=\"lcovc,opencover\"", // See workaround below.
                 "/p:CoverletOutputFormat=\"lcov%2copencover\"",
                 "/p:CoverletOutput=../../TestResults/"
             ],
-            "group": "test"
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "build"
+            ],
+            "problemMatcher": []
         }
     ]
 }
