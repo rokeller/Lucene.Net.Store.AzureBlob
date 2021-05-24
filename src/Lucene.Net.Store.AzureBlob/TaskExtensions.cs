@@ -8,14 +8,16 @@ namespace Lucene.Net.Store
     {
         public static void SafeWait(this Task task)
         {
-            task.GetAwaiter().GetResult();
+            Task.Run(async () => await task).GetAwaiter().GetResult();
+            // task.GetAwaiter().GetResult();
         }
 
         public static T SafeWait<T>(this Task<T> task)
         {
             try
             {
-                return task.GetAwaiter().GetResult();
+                return Task.Run(async () => await task).GetAwaiter().GetResult();
+                // return task.GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
