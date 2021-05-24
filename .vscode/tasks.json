@@ -27,6 +27,8 @@
             "command": "./dotnet-with-env.sh",
             "args": [
                 "test",
+                "--test-adapter-path:.",
+                "--logger:\"junit;LogFilePath=../../TestResults/{assembly}-results.xml;FailureBodyFormat=Verbose\"",
                 "-v=n",
                 "--no-build",
                 "--filter",
@@ -52,6 +54,8 @@
             "command": "./dotnet-with-env.sh",
             "args": [
                 "test",
+                "--test-adapter-path:.",
+                "--logger:\"junit;LogFilePath=../../TestResults/{assembly}-results.xml;FailureBodyFormat=Verbose\"",
                 "-v=n",
                 "--no-build",
                 "/p:CollectCoverage=true",

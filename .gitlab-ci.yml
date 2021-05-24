@@ -20,12 +20,16 @@ build and test:
     paths:
       - TestResults/
       - Packages/
+    reports:
+      junit:
+        - TestResults/**/*-results.xml
   coverage: '/^\|\s+Total\s+\|\s+\d+\.?\d+%\s+\|\s+(\d+\.?\d+)%\s+\|\s+\d+\.?\d+%\s+\|$/'
   before_script:
     - ". build/prepare.sh"
   script:
     - "dotnet build -c $FLAVOR $BUILD_ARGS"
-    - "dotnet test  -c $FLAVOR -v=n $TEST_ARGS"
+    - "mkdir TestResults/ || true"
+    - "dotnet test  -c $FLAVOR -v=n --test-adapter-path:. --logger:\"junit;LogFilePath=../../TestResults/{assembly}-results.xml;FailureBodyFormat=Verbose\" $TEST_ARGS"
     - "mkdir Packages/ || true"
     - "cp $(find ./ -name *.*nupkg -print) Packages/"
 

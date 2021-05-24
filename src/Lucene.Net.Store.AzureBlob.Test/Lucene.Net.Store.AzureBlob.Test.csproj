@@ -10,6 +10,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="JunitXml.TestLogger" Version="3.*"/>
     <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta*"/>
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta*"/>
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.*"/>
