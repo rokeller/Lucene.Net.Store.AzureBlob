@@ -45,25 +45,25 @@ namespace Lucene.Net.Store
             Assert.Equal((long)len, dir.FileLength("sample-file"));
         }
 
-//         [Fact]
-//         public void FileLengthThrowsWhenBlobDoesNotExist()
-//         {
-//             dir = new AzureBlobDirectory(blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
+        [Fact]
+        public void FileLengthThrowsWhenBlobDoesNotExist()
+        {
+            dir = new AzureBlobDirectory(blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
 
-//             Assert.Throws<FileNotFoundException>(() => dir.FileLength("does-not-exist"));
-//         }
+            Assert.Throws<FileNotFoundException>(() => dir.FileLength("does-not-exist"));
+        }
 
-//         [Theory]
-//         [InlineData("segments.gen")]
-//         [InlineData("random")]
-//         public void FileExistsReturnsFalseWhenFilesDoNotExist(string name)
-//         {
-//             dir = new AzureBlobDirectory(blobContainer, "FileExistsReturnsFalseWhenFilesDoNotExist");
+        [Theory]
+        [InlineData("segments.gen")]
+        [InlineData("random")]
+        public void FileExistsReturnsFalseWhenFilesDoNotExist(string name)
+        {
+            dir = new AzureBlobDirectory(blobContainer, "FileExistsReturnsFalseWhenFilesDoNotExist");
 
-// #pragma warning disable 618
-//             Assert.False(dir.FileExists(name));
-// #pragma warning restore 618
-//         }
+#pragma warning disable 618
+            Assert.False(dir.FileExists(name));
+#pragma warning restore 618
+        }
 
 //         [Fact]
 //         public void FileExistsWorks()
