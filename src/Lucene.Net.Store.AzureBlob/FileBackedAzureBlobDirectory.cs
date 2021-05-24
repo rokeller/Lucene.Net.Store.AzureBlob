@@ -36,7 +36,7 @@ namespace Lucene.Net.Store
             if (IsInLastKnownBlobs(name))
             {
                 // Do not wait for the deletion of the blob to complete.
-                DeleteFileAsync(name).Ignore();
+                DeleteBlob(name);
             }
         }
 
@@ -51,7 +51,7 @@ namespace Lucene.Net.Store
             }
             else
             {
-                return FileExistsAsync(name).SafeWait();
+                return BlobExists(name);
             }
         }
 
@@ -65,7 +65,7 @@ namespace Lucene.Net.Store
             }
             else
             {
-                return GetFileLengthAsync(name).SafeWait();
+                return GetBlobLength(name);
             }
         }
 
@@ -84,7 +84,7 @@ namespace Lucene.Net.Store
             if (!fsDirectory.FileExists(name))
 #pragma warning restore 618
             {
-                DownloadFileAsync(name, Path.Combine(fsDirectory.Directory.FullName, name)).SafeWait();
+                DownloadBlobToFile(name, Path.Combine(fsDirectory.Directory.FullName, name));
             }
 
             return fsDirectory.OpenInput(name, context);
@@ -93,7 +93,7 @@ namespace Lucene.Net.Store
         public override void Sync(ICollection<string> names)
         {
             fsDirectory.Sync(names);
-            List<Task> pending = new List<Task>(names.Count);
+            // List<Task> pending = new List<Task>(names.Count);
             string rootPath = fsDirectory.Directory.FullName;
 
             foreach (string name in names)
@@ -117,11 +117,8 @@ namespace Lucene.Net.Store
                     };
                 }
 
-                pending.Add(
-                    UploadFileAndIgnoreFailingPrecodintionsAsync(name, Path.Combine(rootPath, name), accessCondition));
+                UploadFileAndIgnoreFailingPrecodintions(name, Path.Combine(rootPath, name), accessCondition);
             }
-
-            Task.WhenAll(pending).SafeWait();
         }
 
         protected override void Dispose(bool disposing)
@@ -144,11 +141,11 @@ namespace Lucene.Net.Store
             }
         }
 
-        private async Task UploadFileAndIgnoreFailingPrecodintionsAsync(string targetName, string sourcePath, AccessCondition accessCondition = null)
+        private void UploadFileAndIgnoreFailingPrecodintions(string targetName, string sourcePath, AccessCondition accessCondition = null)
         {
             try
             {
-                await UploadFileAsync(targetName, sourcePath, accessCondition);
+                UploadFileToBlob(targetName, sourcePath, accessCondition);
             }
             catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 409)
             {

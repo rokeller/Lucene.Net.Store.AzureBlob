@@ -35,7 +35,7 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            DeleteFileAsync(name).SafeWait();
+            DeleteBlob(name);
         }
 
         [Obsolete("this method will be removed in 5.0")]
@@ -43,7 +43,7 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            return FileExistsAsync(name).SafeWait();
+            return BlobExists(name);
         }
 
         public override long FileLength(string name)
@@ -52,7 +52,7 @@ namespace Lucene.Net.Store
             {
                 EnsureOpen();
 
-                return GetFileLengthAsync(name).SafeWait();
+                return GetBlobLength(name);
             }
             catch (Exception ex)
             {

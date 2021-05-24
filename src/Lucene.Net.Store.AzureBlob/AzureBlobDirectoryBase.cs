@@ -56,13 +56,13 @@ namespace Lucene.Net.Store
             return lastKnownBlobs.ContainsKey(name);
         }
 
-        protected async Task DownloadFileAsync(string sourceName, string targetPath)
+        protected void DownloadBlobToFile(string sourceName, string targetPath)
         {
             CloudBlob blob = GetBlob(sourceName);
 
             try
             {
-                await blob.DownloadToFileAsync(targetPath, FileMode.Create);
+                blob.DownloadToFile(targetPath, FileMode.Create);
             }
             catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
             {
@@ -70,33 +70,33 @@ namespace Lucene.Net.Store
             }
         }
 
-        protected async Task UploadFileAsync(string targetName, string sourcePath, AccessCondition accessCondition = null)
+        protected void UploadFileToBlob(string targetName, string sourcePath, AccessCondition accessCondition = null)
         {
             CloudBlockBlob blob = GetBlob(targetName);
-            await blob.UploadFromFileAsync(sourcePath, accessCondition, null, null);
+            blob.UploadFromFile(sourcePath, accessCondition, null, null);
             lastKnownBlobs.TryAdd(targetName, blob);
         }
 
-        protected async Task DeleteFileAsync(string name)
+        protected void DeleteBlob(string name)
         {
             CloudBlockBlob blob = GetBlob(name);
-            await blob.DeleteIfExistsAsync();
+            blob.DeleteIfExists();
             lastKnownBlobs.TryRemove(name, out _);
         }
 
-        protected Task<bool> FileExistsAsync(string name)
+        protected bool BlobExists(string name)
         {
             if (lastKnownBlobs.ContainsKey(name))
             {
-                return Task.FromResult(true);
+                return true;
             }
 
             CloudBlockBlob blob = GetBlob(name);
 
-            return blob.ExistsAsync();
+            return blob.Exists();
         }
 
-        protected async Task<long> GetFileLengthAsync(string name)
+        protected long GetBlobLength(string name)
         {
             try
             {
@@ -105,7 +105,7 @@ namespace Lucene.Net.Store
                     blob = GetBlob(name);
                     try
                     {
-                        await blob.FetchAttributesAsync();
+                        blob.FetchAttributes();
                     }
                     catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
                     {
