@@ -25,4 +25,8 @@
     <ProjectReference Include="..\Lucene.Net.Store.AzureBlob\Lucene.Net.Store.AzureBlob.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="*Azure*.cs" />
+  </ItemGroup>
+
 </Project>
