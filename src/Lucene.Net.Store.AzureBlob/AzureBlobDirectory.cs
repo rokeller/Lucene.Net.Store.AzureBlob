@@ -56,7 +56,7 @@ namespace Lucene.Net.Store
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{nameof(AzureBlobDirectory)}.{nameof(FileLength)}: Unhandled exception: {ex}");
+                Console.WriteLine($"***** {nameof(AzureBlobDirectory)}.{nameof(FileLength)}: Unhandled exception: {ex}");
                 throw;
             }
         }

@@ -8,18 +8,18 @@ namespace Lucene.Net.Store
     {
         public static void SafeWait(this Task task)
         {
-            task.ConfigureAwait(false).GetAwaiter().GetResult();
+            task.GetAwaiter().GetResult();
         }
 
         public static T SafeWait<T>(this Task<T> task)
         {
             try
             {
-                return task.ConfigureAwait(false).GetAwaiter().GetResult();
+                return task.GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{nameof(TaskExtensions)}.{nameof(SafeWait)}: Unhandled exception: {ex}");
+                Console.WriteLine($"***** {nameof(TaskExtensions)}.{nameof(SafeWait)}: Unhandled exception: {ex}");
                 throw;
             }
         }

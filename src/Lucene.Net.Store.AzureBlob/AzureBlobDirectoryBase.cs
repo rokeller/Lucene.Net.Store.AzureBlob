@@ -119,7 +119,7 @@ namespace Lucene.Net.Store
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Unhandled exception: {0}", ex);
+                Console.WriteLine("***** Unhandled exception: {0}", ex);
                 throw;
             }
         }
