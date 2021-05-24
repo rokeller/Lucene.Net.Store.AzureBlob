@@ -98,22 +98,30 @@ namespace Lucene.Net.Store
 
         protected async Task<long> GetFileLengthAsync(string name)
         {
-            if (!lastKnownBlobs.TryGetValue(name, out CloudBlob blob))
+            try
             {
-                blob = GetBlob(name);
-                try
+                if (!lastKnownBlobs.TryGetValue(name, out CloudBlob blob))
                 {
-                    await blob.FetchAttributesAsync();
-                }
-                catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
-                {
-                    throw new FileNotFoundException($"The blob '{name}' does not exist.", name, ex);
+                    blob = GetBlob(name);
+                    try
+                    {
+                        await blob.FetchAttributesAsync();
+                    }
+                    catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
+                    {
+                        throw new FileNotFoundException($"The blob '{name}' does not exist.", name, ex);
+                    }
+
+                    lastKnownBlobs.TryAdd(name, blob);
                 }
 
-                lastKnownBlobs.TryAdd(name, blob);
+                return blob.Properties.Length;
             }
-
-            return blob.Properties.Length;
+            catch (Exception ex)
+            {
+                Console.WriteLine("Unhandled exception: {0}", ex);
+                throw;
+            }
         }
 
         protected IEnumerable<CloudBlob> ListBlobs()

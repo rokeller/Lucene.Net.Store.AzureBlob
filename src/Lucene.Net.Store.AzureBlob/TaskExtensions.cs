@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,7 +13,15 @@ namespace Lucene.Net.Store
 
         public static T SafeWait<T>(this Task<T> task)
         {
-            return task.ConfigureAwait(false).GetAwaiter().GetResult();
+            try
+            {
+                return task.ConfigureAwait(false).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{nameof(TaskExtensions)}.{nameof(SafeWait)}: Unhandled exception: {ex}");
+                throw;
+            }
         }
 
         public static void Ignore(this Task task)
