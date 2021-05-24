@@ -48,17 +48,9 @@ namespace Lucene.Net.Store
 
         public override long FileLength(string name)
         {
-            try
-            {
-                EnsureOpen();
+            EnsureOpen();
 
-                return GetBlobLength(name);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"***** {nameof(AzureBlobDirectory)}.{nameof(FileLength)}: Unhandled exception: {ex}");
-                throw;
-            }
+            return GetBlobLength(name);
         }
 
         public override string[] ListAll()

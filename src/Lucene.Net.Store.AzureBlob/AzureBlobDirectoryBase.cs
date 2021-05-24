@@ -98,30 +98,22 @@ namespace Lucene.Net.Store
 
         protected long GetBlobLength(string name)
         {
-            try
+            if (!lastKnownBlobs.TryGetValue(name, out CloudBlob blob))
             {
-                if (!lastKnownBlobs.TryGetValue(name, out CloudBlob blob))
+                blob = GetBlob(name);
+                try
                 {
-                    blob = GetBlob(name);
-                    try
-                    {
-                        blob.FetchAttributes();
-                    }
-                    catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
-                    {
-                        throw new FileNotFoundException($"The blob '{name}' does not exist.", name, ex);
-                    }
-
-                    lastKnownBlobs.TryAdd(name, blob);
+                    blob.FetchAttributes();
+                }
+                catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
+                {
+                    throw new FileNotFoundException($"The blob '{name}' does not exist.", name, ex);
                 }
 
-                return blob.Properties.Length;
+                lastKnownBlobs.TryAdd(name, blob);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine("***** Unhandled exception: {0}", ex);
-                throw;
-            }
+
+            return blob.Properties.Length;
         }
 
         protected IEnumerable<CloudBlob> ListBlobs()

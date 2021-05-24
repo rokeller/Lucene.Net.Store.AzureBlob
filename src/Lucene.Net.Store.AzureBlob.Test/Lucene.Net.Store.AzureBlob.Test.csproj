@@ -13,6 +13,8 @@
     </PackageReference>
     <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta*" />
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta*" />
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.*"/>
+    <PackageReference Include="Microsoft.ApplicationInsights.DependencyCollector" Version="2.*"/>
     <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="11.*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
     <PackageReference Include="Moq" Version="4.13.1" />
@@ -23,11 +25,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lucene.Net.Store.AzureBlob\Lucene.Net.Store.AzureBlob.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="*Azure*.cs" />
-    <Compile Include="AzureBlobLockFactoryTests.cs;AzureBlobDirectoryTests.cs" />
   </ItemGroup>
 
 </Project>
