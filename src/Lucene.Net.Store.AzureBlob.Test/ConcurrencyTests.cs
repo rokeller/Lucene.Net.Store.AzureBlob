@@ -5,9 +5,6 @@ using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.Storage.Blob;
 using Xunit;
 using Xunit.Abstractions;
@@ -20,7 +17,6 @@ namespace Lucene.Net.Store
 
         private readonly CloudBlobContainer blobContainer;
         private readonly ITestOutputHelper output;
-        private readonly IOperationHolder<RequestTelemetry> telemetryHolder;
         private Directory dir1;
         private Directory dir2;
 
@@ -37,16 +33,12 @@ namespace Lucene.Net.Store
             string prefix = Utils.GenerateRandomString(8);
             dir1 = GetDirectory(blobContainer.Name, prefix);
             dir2 = GetDirectory(blobContainer.Name, prefix);
-
-            telemetryHolder = appInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>($"Test | {GetType().Name}");
         }
 
         protected abstract Directory GetDirectory(string containerName, string prefix);
 
         public override void Dispose()
         {
-            telemetryHolder.Dispose();
-
             using (dir1) { }
             using (dir2) { }
 
