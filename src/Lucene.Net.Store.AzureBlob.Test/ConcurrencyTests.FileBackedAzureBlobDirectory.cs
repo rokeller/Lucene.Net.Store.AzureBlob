@@ -54,8 +54,8 @@ namespace Lucene.Net.Store
         [Fact]
         public async Task Test()
         {
-            // using IOperationHolder<RequestTelemetry> telemetry =
-            //     AppInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>($"Test | FileBackedAzureBlobDirectoryConcurrencyTests.Test");
+            using IOperationHolder<RequestTelemetry> telemetry =
+                AppInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>($"Test | FileBackedAzureBlobDirectoryConcurrencyTests.Test");
 
             await ConcurrentWritesArePreventedByRemoteLock();
         }
