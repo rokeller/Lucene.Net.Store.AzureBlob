@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <Compile Remove="*Azure*.cs" />
-    <Compile Include="AzureBlobLockFactoryTests.cs" />
+    <Compile Include="AzureBlobLockFactoryTests.cs;AzureBlobDirectoryTests.cs" />
   </ItemGroup>
 
 </Project>
