@@ -6,9 +6,38 @@ namespace Lucene.Net.Store
 {
     internal static class TaskExtensions
     {
+        internal static void RunWithoutSynchronizationContext(Action actionToRun)
+        {
+            SynchronizationContext oldContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(null);
+                actionToRun();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(oldContext);
+            }
+        }
+
+        internal static T RunWithoutSynchronizationContext<T>(Func<T> actionToRun)
+        {
+            SynchronizationContext oldContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(null);
+                return actionToRun();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(oldContext);
+            }
+        }
+
         public static void SafeWait(this Task task)
         {
-            Task.Run(async () => await task).GetAwaiter().GetResult();
+            RunWithoutSynchronizationContext(() => task).GetAwaiter().GetResult();
+            // Task.Run(async () => await task).GetAwaiter().GetResult();
             // task.GetAwaiter().GetResult();
         }
 
@@ -16,7 +45,8 @@ namespace Lucene.Net.Store
         {
             try
             {
-                return Task.Run(async () => await task).GetAwaiter().GetResult();
+                return RunWithoutSynchronizationContext(() => task).GetAwaiter().GetResult();
+                // return Task.Run(async () => await task).GetAwaiter().GetResult();
                 // return task.GetAwaiter().GetResult();
             }
             catch (Exception ex)
