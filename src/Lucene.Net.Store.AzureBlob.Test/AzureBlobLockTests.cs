@@ -134,7 +134,7 @@ namespace Lucene.Net.Store.AzureBlob.Test
             mockLeaseClientFactory.Verify(f => f.GetBlobLeaseClient(It.IsAny<BlobBaseClient>()), Times.Once());
             mockBlobClient.Verify(c => c.Upload(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once());
             mockBlobLeaseClient.Verify(c => c.Acquire(It.IsAny<TimeSpan>(), It.IsAny<RequestConditions>(), It.IsAny<CancellationToken>()), Times.Once());
-            mockBlobLeaseClient.Verify(c => c.Renew(null, default), Times.Once());
+            mockBlobLeaseClient.Verify(c => c.Renew(null, default), Times.AtMostOnce());
         }
     }
 }
