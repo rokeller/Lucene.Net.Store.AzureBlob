@@ -8,7 +8,10 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Authors>Roger Keller</Authors>
-    <PackageDescription>Provides a Lucene.Net index Directory which persists data in Azure Blobs.</PackageDescription>
+    <PackageDescription>Provides a Lucene.Net index Directory which persists data in Azure Blobs.
+
+Use the 0.* packages when you need to target Microsoft.Azure.Storage.Blob, and the 1.x packages when the newer Azure.Storage.Blobs is to be targeted.
+    </PackageDescription>
     <PackageTags>lucene.net;lucene;directory;azure;blob;blobs;azuredirectory</PackageTags>
   </PropertyGroup>
   <ItemGroup>
