@@ -1,9 +1,9 @@
 using System;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
-using Microsoft.Azure.Storage.Blob;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -23,9 +23,9 @@ namespace Lucene.Net.Store
 
         protected override Directory GetDirectory(string containerName, string prefix)
         {
-            CloudBlobContainer container = Utils.GetBlobClient().GetContainerReference(containerName);
+            BlobContainerClient containerClient = Utils.GetBlobContainerClient(containerName);
 
-            return new AzureBlobDirectory(container, prefix);
+            return new AzureBlobDirectory(containerClient, prefix);
         }
 
         [Fact]

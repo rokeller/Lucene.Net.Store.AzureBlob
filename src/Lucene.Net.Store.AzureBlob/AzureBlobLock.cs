@@ -1,8 +1,11 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 
 namespace Lucene.Net.Store
 {
@@ -10,14 +13,16 @@ namespace Lucene.Net.Store
     {
         private static readonly TimeSpan LeaseTime = TimeSpan.FromSeconds(60);
 
-        private readonly CloudBlockBlob lockBlob;
+        private readonly BlobClient lockBlobClient;
+        private readonly BlobLeaseClient leaseClient;
         private string leaseId;
 
         private CancellationTokenSource renewalCancellationSource;
 
-        public AzureBlobLock(CloudBlockBlob lockBlob)
+        public AzureBlobLock(BlobClient lockBlobClient, IBlobLeaseClientFactory blobLeaseClientFactory)
         {
-            this.lockBlob = lockBlob;
+            this.lockBlobClient = lockBlobClient;
+            leaseClient = blobLeaseClientFactory.GetBlobLeaseClient(lockBlobClient);
         }
 
         #region Lock Implementation
@@ -26,12 +31,12 @@ namespace Lucene.Net.Store
         {
             try
             {
-                // If we can update the blob with a new block and without a lease ID, it isn't locked.
+                // If we can update the blob with empty data and _without_ a lease ID, it isn't locked.
                 // See https://docs.microsoft.com/en-us/rest/api/storageservices/lease-blob#outcomes-of-lease-operations-on-blobs-by-lease-state
-                lockBlob.UploadFromByteArray(new byte[0], 0, 0);
+                lockBlobClient.Upload(Stream.Null, overwrite: true);
                 return false;
             }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 412) // Pre-condition failed
+            catch (RequestFailedException ex) when (ex.Status == 412) // Pre-condition failed
             {
                 FailureReason = ex;
                 return true;
@@ -47,7 +52,8 @@ namespace Lucene.Net.Store
 
             try
             {
-                leaseId = lockBlob.AcquireLease(LeaseTime, null);
+                Response<BlobLease> response = leaseClient.Acquire(LeaseTime);
+                leaseId = response.Value.LeaseId;
 
                 if (null == renewalCancellationSource)
                 {
@@ -57,7 +63,7 @@ namespace Lucene.Net.Store
 
                 return true;
             }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 409) // Conflict -- Somebody else has a lease
+            catch (RequestFailedException ex) when (ex.Status == 409) // Conflict -- Somebody else has a lease
             {
                 FailureReason = ex;
 
@@ -81,7 +87,11 @@ namespace Lucene.Net.Store
                 if (null != leaseId)
                 {
                     // Delete the blob using the current lease.
-                    lockBlob.Delete(DeleteSnapshotsOption.None, AccessCondition.GenerateLeaseCondition(leaseId));
+                    BlobRequestConditions conditions = new BlobRequestConditions()
+                    {
+                        LeaseId = leaseId,
+                    };
+                    lockBlobClient.Delete(DeleteSnapshotsOption.None, conditions);
                     leaseId = null;
                 }
             }
@@ -104,7 +114,7 @@ namespace Lucene.Net.Store
             if (!renewalCancellationSource.IsCancellationRequested)
             {
                 // See https://docs.microsoft.com/en-us/rest/api/storageservices/lease-blob#outcomes-of-lease-operations-on-blobs-by-lease-state
-                lockBlob.RenewLease(AccessCondition.GenerateLeaseCondition(leaseId));
+                leaseClient.Renew();
 
                 ScheduleRenewLease();
             }

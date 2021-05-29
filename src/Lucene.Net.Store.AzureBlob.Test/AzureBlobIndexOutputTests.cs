@@ -1,5 +1,6 @@
 using System;
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
 using Xunit;
 
 namespace Lucene.Net.Store
@@ -7,38 +8,36 @@ namespace Lucene.Net.Store
     [Collection("AppInsights")]
     public class AzureBlobIndexOutputTests : TestBase, IDisposable
     {
-        private readonly CloudBlobContainer blobContainer;
+        private readonly BlobContainerClient blobContainerClient;
         private AzureBlobIndexOutput output;
 
         public AzureBlobIndexOutputTests(AppInsightsFixture appInsightsFixture)
         : base(appInsightsFixture)
         {
-            CloudBlobClient blobClient = Utils.GetBlobClient();
-
-            blobContainer = blobClient.GetContainerReference("azureblobindexoutput-test-" + Utils.GenerateRandomInt(1000));
-            blobContainer.CreateIfNotExists();
+            blobContainerClient = Utils.GetBlobContainerClient("azureblobindexoutput-test-" + Utils.GenerateRandomInt(1000));
+            blobContainerClient.CreateIfNotExists();
         }
 
         public override void Dispose()
         {
             using (output) { }
-            blobContainer.DeleteIfExists();
+            blobContainerClient.DeleteIfExists();
             base.Dispose();
         }
 
         [Fact]
         public void LengthReportsCurrentLen()
         {
-            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("LengthReportsCurrentLen");
+            BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("LengthReportsCurrentLen");
             AzureBlobIndexOutput output;
 
-            using (output = new AzureBlobIndexOutput(blob))
+            using (output = new AzureBlobIndexOutput(blobClient))
             {
                 output.WriteByte(1);
             }
             Assert.Equal(1, output.Length);
 
-            using (output = new AzureBlobIndexOutput(blob))
+            using (output = new AzureBlobIndexOutput(blobClient))
             {
                 output.WriteBytes(Utils.GenerateRandomBuffer(1234), 0, 1234);
             }
@@ -48,8 +47,8 @@ namespace Lucene.Net.Store
         [Fact]
         public void SeekThrowsNotSupported()
         {
-            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("LengthReportsCurrentLen");
-            output = new AzureBlobIndexOutput(blob);
+            BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("LengthReportsCurrentLen");
+            output = new AzureBlobIndexOutput(blobClient);
 
             output.WriteString("SeekThrowsNotSupported");
 

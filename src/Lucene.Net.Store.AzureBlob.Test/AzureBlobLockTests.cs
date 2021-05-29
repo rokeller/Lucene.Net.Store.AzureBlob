@@ -1,7 +1,10 @@
+using System.IO;
 using System;
 using System.Threading;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using Moq;
 using Xunit;
 
@@ -10,87 +13,128 @@ namespace Lucene.Net.Store.AzureBlob.Test
     [Collection("AppInsights")]
     public sealed class AzureBlobLockTests : TestBase, IDisposable
     {
-        private readonly CloudBlobContainer blobContainer;
+        private readonly BlobContainerClient blobContainerClient;
         private AzureBlobLock theLock;
 
         public AzureBlobLockTests(AppInsightsFixture appInsightsFixture)
         : base(appInsightsFixture)
         {
-            CloudBlobClient blobClient = Utils.GetBlobClient();
-
-            blobContainer = blobClient.GetContainerReference("azurebloblock-test-" + Utils.GenerateRandomInt(1000));
-            blobContainer.CreateIfNotExists();
+            blobContainerClient = Utils.GetBlobContainerClient("azurebloblock-test-" + Utils.GenerateRandomInt(1000));
+            blobContainerClient.CreateIfNotExists();
         }
 
         public override void Dispose()
         {
             using (theLock) { }
-            blobContainer.DeleteIfExists();
+            blobContainerClient.DeleteIfExists();
             base.Dispose();
         }
 
         [Fact]
         public void IsLockedWorks()
         {
-            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("IsLockedWorks");
-            theLock = new AzureBlobLock(blob);
+            BlobClient blobClient = blobContainerClient.GetBlobClient("IsLockedWorks");
+            BlobLeaseClient blobLeaseClient = blobClient.GetBlobLeaseClient();
+            theLock = new AzureBlobLock(blobClient, BlobLeaseClientFactory.Default);
 
             Assert.False(theLock.IsLocked());
-            string leaseId = blob.AcquireLease(TimeSpan.FromSeconds(15) /* minimum allowed */, null);
+            blobLeaseClient.Acquire(TimeSpan.FromSeconds(15) /* minimum allowed */);
             Assert.True(theLock.IsLocked());
-            blob.ReleaseLease(AccessCondition.GenerateLeaseCondition(leaseId));
+            blobLeaseClient.Renew();
+            Assert.True(theLock.IsLocked());
+            blobLeaseClient.Release();
             Assert.False(theLock.IsLocked());
         }
 
         [Fact]
         public void ObtainWorks()
         {
-            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("ObtainWorks");
-            theLock = new AzureBlobLock(blob);
+            BlobClient blobClient = blobContainerClient.GetBlobClient("ObtainWorks");
+            BlobLeaseClient blobLeaseClient = blobClient.GetBlobLeaseClient();
+            theLock = new AzureBlobLock(blobClient, BlobLeaseClientFactory.Default);
 
             Assert.True(theLock.Obtain());
-            blob.FetchAttributes();
-            Assert.Equal(LeaseStatus.Locked, blob.Properties.LeaseStatus);
-            Assert.Equal(LeaseState.Leased, blob.Properties.LeaseState);
+            Response<BlobProperties> response = blobClient.GetProperties();
+            Assert.Equal(LeaseStatus.Locked, response.Value.LeaseStatus);
+            Assert.Equal(LeaseState.Leased, response.Value.LeaseState);
             Assert.False(theLock.Obtain());
         }
 
         [Fact]
         public void ObtainWorksInRaceCondition()
         {
-            Mock<CloudBlockBlob> mockBlob = new Mock<CloudBlockBlob>(MockBehavior.Strict, new Uri("http://localhost:10000/devstorageaccount/ObtainWorksInRaceCondition"));
-            theLock = new AzureBlobLock(mockBlob.Object);
+            Mock<BlobClient> mockBlobClient = new Mock<BlobClient>(MockBehavior.Strict,
+                new Uri("http://localhost:10000/devstorageaccount/ObtainWorksInRaceCondition"), (BlobClientOptions)null);
+            Mock<BlobLeaseClient> mockBlobLeaseClient = new Mock<BlobLeaseClient>(MockBehavior.Strict,
+                mockBlobClient.Object, (string)null);
+            Mock<IBlobLeaseClientFactory> mockLeaseClientFactory = new Mock<IBlobLeaseClientFactory>(MockBehavior.Strict);
 
-            mockBlob.Setup(b => b.UploadFromByteArray(It.Is<byte[]>(buf => buf.Length == 0), 0, 0, null, null, null));
-            mockBlob.Setup(b => b.AcquireLease(TimeSpan.FromMinutes(1), null, null, null, null))
-                .Throws(new StorageException(new RequestResult() { HttpStatusCode = 409, }, "Injected error", null));
-            mockBlob.Setup(b => b.Delete(DeleteSnapshotsOption.None, It.Is<AccessCondition>(c => c.LeaseId == null), null, null));
+            mockLeaseClientFactory
+                .Setup(f => f.GetBlobLeaseClient(mockBlobClient.Object))
+                .Returns(mockBlobLeaseClient.Object);
+            mockBlobClient
+                .Setup(c => c.Upload(Stream.Null, true, default))
+                .Returns(new TestResponse<BlobContentInfo>(BlobsModelFactory.BlobContentInfo(
+                    new ETag("abcd"),
+                    DateTimeOffset.UtcNow,
+                    null, null, null, null, 1)));
+            mockBlobLeaseClient
+                .Setup(c => c.Acquire(TimeSpan.FromMinutes(1), null, default))
+                .Throws(new RequestFailedException(409, "Injected error"));
 
+            theLock = new AzureBlobLock(mockBlobClient.Object, mockLeaseClientFactory.Object);
             Assert.False(theLock.Obtain());
 
-            mockBlob.Verify(b => b.UploadFromByteArray(It.Is<byte[]>(buf => buf.Length == 0), 0, 0, null, null, null), Times.Once());
-            mockBlob.Verify(b => b.AcquireLease(TimeSpan.FromMinutes(1), null, null, null, null), Times.Once());
+            mockLeaseClientFactory.Verify(f => f.GetBlobLeaseClient(It.IsAny<BlobBaseClient>()), Times.Once());
+            mockBlobClient.Verify(c => c.Upload(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once());
+            mockBlobLeaseClient.Verify(c => c.Acquire(It.IsAny<TimeSpan>(), It.IsAny<RequestConditions>(), It.IsAny<CancellationToken>()), Times.Once());
         }
 
         [Fact]
         [Trait("Classification", "LongRunning")]
         public void LeaseRenewalWorks()
         {
-            Mock<CloudBlockBlob> mockBlob = new Mock<CloudBlockBlob>(MockBehavior.Strict, new Uri("http://localhost:10000/devstorageaccount/LeaseRenewalWorks"));
-            theLock = new AzureBlobLock(mockBlob.Object);
+            Mock<BlobClient> mockBlobClient = new Mock<BlobClient>(MockBehavior.Strict,
+                new Uri("http://localhost:10000/devstorageaccount/LeaseRenewalWorks"), (BlobClientOptions)null);
+            Mock<BlobLeaseClient> mockBlobLeaseClient = new Mock<BlobLeaseClient>(MockBehavior.Strict,
+                mockBlobClient.Object, (string)null);
+            Mock<IBlobLeaseClientFactory> mockLeaseClientFactory = new Mock<IBlobLeaseClientFactory>(MockBehavior.Strict);
 
-            mockBlob.Setup(b => b.UploadFromByteArray(It.Is<byte[]>(buf => buf.Length == 0), 0, 0, null, null, null));
-            mockBlob.Setup(b => b.AcquireLease(TimeSpan.FromMinutes(1), null, null, null, null))
-                .Returns("the-lease-id");
-            mockBlob.Setup(b => b.RenewLease(It.Is<AccessCondition>(ac => ac.LeaseId == "the-lease-id"), null, null));
-            mockBlob.Setup(b => b.Delete(DeleteSnapshotsOption.None, It.Is<AccessCondition>(c => c.LeaseId == "the-lease-id"), null, null));
+            mockLeaseClientFactory
+                .Setup(f => f.GetBlobLeaseClient(mockBlobClient.Object))
+                .Returns(mockBlobLeaseClient.Object);
+            mockBlobClient
+                .Setup(c => c.Upload(Stream.Null, true, default))
+                .Returns(new TestResponse<BlobContentInfo>(BlobsModelFactory.BlobContentInfo(
+                    new ETag("1234"),
+                    DateTimeOffset.UtcNow,
+                    null, null, null, null, 1)));
+            mockBlobLeaseClient
+                .Setup(c => c.Acquire(TimeSpan.FromMinutes(1), null, default))
+                .Returns(new TestResponse<BlobLease>(BlobsModelFactory.BlobLease(
+                    new ETag("1234"),
+                    DateTimeOffset.UtcNow,
+                    "the-lease-id"
+                )));
+            mockBlobLeaseClient
+                .Setup(c => c.Renew(null, default))
+                .Returns(new TestResponse<BlobLease>(BlobsModelFactory.BlobLease(
+                    new ETag("1234"),
+                    DateTimeOffset.UtcNow,
+                    "the-lease-id"
+                )));
+            mockBlobClient
+                .Setup(c => c.Delete(DeleteSnapshotsOption.None, It.Is<BlobRequestConditions>(rc => rc.LeaseId == "the-lease-id"), default))
+                .Returns(new TestResponse());
 
+            theLock = new AzureBlobLock(mockBlobClient.Object, mockLeaseClientFactory.Object);
             Assert.True(theLock.Obtain());
             Thread.Sleep(TimeSpan.FromSeconds(55.1));
 
-            mockBlob.Verify(b => b.UploadFromByteArray(It.Is<byte[]>(buf => buf.Length == 0), 0, 0, null, null, null), Times.Once());
-            mockBlob.Verify(b => b.AcquireLease(TimeSpan.FromMinutes(1), null, null, null, null), Times.Once());
-            mockBlob.Verify(b => b.RenewLease(It.Is<AccessCondition>(ac => ac.LeaseId == "the-lease-id"), null, null), Times.Once());
+            mockLeaseClientFactory.Verify(f => f.GetBlobLeaseClient(It.IsAny<BlobBaseClient>()), Times.Once());
+            mockBlobClient.Verify(c => c.Upload(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once());
+            mockBlobLeaseClient.Verify(c => c.Acquire(It.IsAny<TimeSpan>(), It.IsAny<RequestConditions>(), It.IsAny<CancellationToken>()), Times.Once());
+            mockBlobLeaseClient.Verify(c => c.Renew(null, default), Times.Once());
         }
     }
 }

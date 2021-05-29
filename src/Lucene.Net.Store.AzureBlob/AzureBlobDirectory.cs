@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Lucene.Net.Index;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
 
 namespace Lucene.Net.Store
 {
@@ -14,12 +14,12 @@ namespace Lucene.Net.Store
     {
         private readonly ConcurrentDictionary<string, CachedInput> cachedInputs = new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
 
-        public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix) : this(blobContainer, blobPrefix, null)
+        public AzureBlobDirectory(BlobContainerClient blobContainerClient, string blobPrefix) : this(blobContainerClient, blobPrefix, null)
         {
         }
 
-        public AzureBlobDirectory(CloudBlobContainer blobContainer, string blobPrefix, AzureBlobDirectoryOptions options)
-        : base(blobContainer, blobPrefix, options)
+        public AzureBlobDirectory(BlobContainerClient blobContainerClient, string blobPrefix, AzureBlobDirectoryOptions options)
+        : base(blobContainerClient, blobPrefix, options)
         { }
 
         #region Directory Implementation
@@ -28,7 +28,7 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            return new AzureBlobIndexOutput(GetBlob(name));
+            return new AzureBlobIndexOutput(GetBlockBlobClient(name));
         }
 
         public override void DeleteFile(string name)
@@ -66,17 +66,7 @@ namespace Lucene.Net.Store
         {
             EnsureOpen();
 
-            Stream stream;
-            CachedInput cachedInput;
-            CloudBlockBlob blob = GetBlobWithStreamOrThrowIfNotFound(name, out stream, out cachedInput);
-
-            if (null == blob && null != cachedInput)
-            {
-                // We had a hit in the cache, so let's use the cached file.
-                return new RAMInputStream(name, cachedInput.File);
-            }
-
-            return new AzureBlobIndexInput(blob, stream);
+            return GetIndexInput(name);
         }
 
         public override void Sync(ICollection<string> names)
@@ -96,15 +86,18 @@ namespace Lucene.Net.Store
 
         #region Private Methods
 
-        private CloudBlockBlob GetBlobWithStreamOrThrowIfNotFound(string name, out Stream stream, out CachedInput cachedInput)
+        private IndexInput GetIndexInput(string name)
         {
-            CloudBlockBlob blob = GetBlob(name);
-            AccessCondition accessCondition = null;
+            BlobClient blobClient = GetBlobClient(name);
+            BlobRequestConditions requestConditions = null;
 
-            if (cachedInputs.Count > 0 && cachedInputs.TryGetValue(name, out cachedInput))
+            if (cachedInputs.Count > 0 && cachedInputs.TryGetValue(name, out CachedInput cachedInput))
             {
                 // Use an access condition with 'If-None-Match' using the ETag of the currently cached version.
-                accessCondition = AccessCondition.GenerateIfNoneMatchCondition(cachedInput.ETag);
+                requestConditions = new BlobRequestConditions()
+                {
+                    IfNoneMatch = cachedInput.ETag,
+                };
             }
             else
             {
@@ -113,32 +106,34 @@ namespace Lucene.Net.Store
 
             try
             {
-                stream = blob.OpenRead(accessCondition);
+                Response<BlobDownloadInfo> response = blobClient.Download(conditions: requestConditions);
+                if (ShouldCache(name))
+                {
+                    if (response.GetRawResponse().Status == 304)
+                    {
+                        // The ETag hasn't changed because the content hasn't changed, so we can return the cached data.
+                        return new RAMInputStream(name, cachedInput.File);
+                    }
+
+                    // Since we cache the downloaded content in memory, we need to dispose of the download info
+                    // here and don't need to transfer ownership to another owner.
+                    using (BlobDownloadInfo blobDownloadInfo = response.Value)
+                    {
+                        // Download the file into the cache, and serve it from there.
+                        cachedInput = CachedInput.Create(name, blobDownloadInfo);
+                        cachedInputs[name] = cachedInput;
+
+                        return new RAMInputStream(name, cachedInput.File);
+                    }
+                }
+
+                // This also transfers ownership of the BlobDownloadInfo from the response to the AzureBlobIndexInput.
+                return new AzureBlobIndexInput(blobClient, response.Value);
             }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 304) // Condition not met: The ETag hasn't changed, return the cached data.
+            catch (RequestFailedException ex) when (ex.Status == 404)
             {
-                // No need to download the data again, since it hasn't changed.
-                Debug.Assert(null != cachedInput, "The cached input must not be null.");
-                stream = null;
-
-                return null;
+                throw new FileNotFoundException($"The blob '{blobClient.Name}' does not exist.", name, ex);
             }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
-            {
-                throw new FileNotFoundException($"The blob '{blob.Name}' does not exist.", name, ex);
-            }
-
-            if (ShouldCache(name))
-            {
-                // Download the file into the cache, and serve it from there.
-                cachedInput = CachedInput.Create(name, blob, stream);
-                cachedInputs[name] = cachedInput;
-                stream = null;
-
-                return null;
-            }
-
-            return blob;
         }
 
         private bool ShouldCache(string name)

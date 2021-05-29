@@ -1,21 +1,21 @@
 using System;
 using System.IO;
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs.Specialized;
 
 namespace Lucene.Net.Store
 {
     internal sealed class AzureBlobIndexOutput : BufferedIndexOutput
     {
-        private readonly CloudBlockBlob blob;
+        private readonly BlockBlobClient blobClient;
         private readonly Stream stream;
 
         private long len;
 
-        public AzureBlobIndexOutput(CloudBlockBlob blob)
+        public AzureBlobIndexOutput(BlockBlobClient blobClient)
         {
-            this.blob = blob;
+            this.blobClient = blobClient;
 
-            stream = blob.OpenWrite();
+            stream = blobClient.OpenWrite(overwrite: true);
         }
 
         public override long Length => len;

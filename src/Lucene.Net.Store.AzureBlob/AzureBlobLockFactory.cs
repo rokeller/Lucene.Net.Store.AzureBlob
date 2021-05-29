@@ -1,18 +1,24 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs;
 
 namespace Lucene.Net.Store
 {
     public class AzureBlobLockFactory : LockFactory
     {
-        private readonly CloudBlobContainer blobContainer;
+        private readonly BlobContainerClient blobContainerClient;
+        private readonly IBlobLeaseClientFactory blobLeaseClientFactory;
         private readonly object locksSyncRoot = new object();
         private readonly Dictionary<string, AzureBlobLock> locks = new Dictionary<string, AzureBlobLock>(StringComparer.Ordinal);
 
-        public AzureBlobLockFactory(CloudBlobContainer blobContainer)
+        public AzureBlobLockFactory(BlobContainerClient blobContainerClient)
+            : this(blobContainerClient, BlobLeaseClientFactory.Default)
+        { }
+
+        private AzureBlobLockFactory(BlobContainerClient blobContainerClient, IBlobLeaseClientFactory blobLeaseClientFactory)
         {
-            this.blobContainer = blobContainer;
+            this.blobContainerClient = blobContainerClient;
+            this.blobLeaseClientFactory = blobLeaseClientFactory;
         }
 
         public override void ClearLock(string lockName)
@@ -37,7 +43,7 @@ namespace Lucene.Net.Store
             {
                 if (!locks.TryGetValue(canonicalName, out AzureBlobLock l))
                 {
-                    locks.Add(canonicalName, l = new AzureBlobLock(GetLockBlob(lockName)));
+                    locks.Add(canonicalName, l = new AzureBlobLock(GetLockBlob(lockName), blobLeaseClientFactory));
                 }
 
                 return l;
@@ -49,9 +55,9 @@ namespace Lucene.Net.Store
             return LockPrefix + lockName;
         }
 
-        private CloudBlockBlob GetLockBlob(string lockName)
+        private BlobClient GetLockBlob(string lockName)
         {
-            return blobContainer.GetBlockBlobReference(LockPrefix + lockName);
+            return blobContainerClient.GetBlobClient(LockPrefix + lockName);
         }
     }
 }

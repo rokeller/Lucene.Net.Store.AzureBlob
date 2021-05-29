@@ -1,21 +1,33 @@
-using System;
 using System.IO;
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 namespace Lucene.Net.Store
 {
     internal sealed class AzureBlobIndexInput : IndexInput
     {
-        private readonly CloudBlockBlob blob;
+        private readonly BlobClient blobClient;
+        private readonly BlobDownloadInfo blobDownloadInfo;
         private readonly Stream stream;
 
-        public AzureBlobIndexInput(CloudBlockBlob blob, Stream stream) : base(blob.Uri.OriginalString)
+        public AzureBlobIndexInput(BlobClient blobClient, long length, Stream stream) : base(blobClient.Uri.OriginalString)
         {
-            this.blob = blob;
+            this.blobClient = blobClient;
             this.stream = stream;
+            Length = length;
         }
 
-        public override long Length => blob.Properties.Length;
+        public AzureBlobIndexInput(BlobClient blobClient, BlobDownloadInfo blobDownloadInfo) : base(blobClient.Uri.OriginalString)
+        {
+            // As the blobDownloadInfo is passed to this object, its ownership is also transferred. This means that we
+            // will be responsible to dispose of it when disposing of this instance.
+            this.blobClient = blobClient;
+            this.blobDownloadInfo = blobDownloadInfo;
+            this.stream = blobDownloadInfo.Content;
+            Length = blobDownloadInfo.ContentLength;
+        }
+
+        public override long Length { get; }
 
         public override long GetFilePointer()
         {
@@ -50,8 +62,8 @@ namespace Lucene.Net.Store
         public override object Clone()
         {
             // TODO: Do this right: Keep track of the master input, and dispose all clones when the master is disposed.
-            Stream stream = blob.OpenRead();
-            AzureBlobIndexInput clone = new AzureBlobIndexInput(blob, stream);
+            Stream stream = blobClient.OpenRead();
+            AzureBlobIndexInput clone = new AzureBlobIndexInput(blobClient, Length, stream);
 
             clone.stream.Seek(stream.Position, SeekOrigin.Begin);
 
@@ -63,6 +75,7 @@ namespace Lucene.Net.Store
             if (disposing)
             {
                 stream.Dispose();
+                blobDownloadInfo?.Dispose();
             }
         }
     }

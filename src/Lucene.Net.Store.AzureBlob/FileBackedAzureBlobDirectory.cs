@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Lucene.Net.Index;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
 
 namespace Lucene.Net.Store
 {
@@ -12,12 +13,19 @@ namespace Lucene.Net.Store
     {
         private readonly FSDirectory fsDirectory;
 
-        public FileBackedAzureBlobDirectory(FSDirectory fsDirectory, CloudBlobContainer blobContainer, string blobPrefix)
-        : this(fsDirectory, blobContainer, blobPrefix, null)
+        public FileBackedAzureBlobDirectory(
+            FSDirectory fsDirectory,
+            BlobContainerClient blobContainerClient,
+            string blobPrefix)
+        : this(fsDirectory, blobContainerClient, blobPrefix, null)
         { }
 
-        public FileBackedAzureBlobDirectory(FSDirectory fsDirectory, CloudBlobContainer blobContainer, string blobPrefix, AzureBlobDirectoryOptions options)
-        : base(blobContainer, blobPrefix, options)
+        public FileBackedAzureBlobDirectory(
+            FSDirectory fsDirectory,
+            BlobContainerClient blobContainerClient,
+            string blobPrefix,
+            AzureBlobDirectoryOptions options)
+        : base(blobContainerClient, blobPrefix, options)
         {
             this.fsDirectory = fsDirectory ?? throw new ArgumentNullException(nameof(fsDirectory));
         }
@@ -96,7 +104,7 @@ namespace Lucene.Net.Store
 
             foreach (string name in names)
             {
-                AccessCondition accessCondition = null;
+                BlobUploadOptions uploadOptions = null;
                 if (!StringComparer.Ordinal.Equals(name, IndexFileNames.SEGMENTS_GEN))
                 {
                     // Files other than the "segments.gen" (which we always upload), we want to upload only when they
@@ -109,13 +117,16 @@ namespace Lucene.Net.Store
                         continue;
                     }
 
-                    accessCondition = new AccessCondition()
+                    uploadOptions = new BlobUploadOptions()
                     {
-                        IfNoneMatchETag = "*",
+                        Conditions = new BlobRequestConditions()
+                        {
+                            IfNoneMatch = ETag.All,
+                        },
                     };
                 }
 
-                UploadFileAndIgnoreFailingPreconditions(name, Path.Combine(rootPath, name), accessCondition);
+                UploadFileAndIgnoreFailingPreconditions(name, Path.Combine(rootPath, name), uploadOptions);
             }
         }
 
@@ -139,13 +150,13 @@ namespace Lucene.Net.Store
             }
         }
 
-        private void UploadFileAndIgnoreFailingPreconditions(string targetName, string sourcePath, AccessCondition accessCondition = null)
+        private void UploadFileAndIgnoreFailingPreconditions(string targetName, string sourcePath, BlobUploadOptions uploadOptions = null)
         {
             try
             {
-                UploadFileToBlob(targetName, sourcePath, accessCondition);
+                UploadFileToBlob(targetName, sourcePath, uploadOptions);
             }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 409)
+            catch (RequestFailedException ex) when (ex.Status == 409)
             {
                 // Intentionally left blank -- we want to ignore this error.
             }

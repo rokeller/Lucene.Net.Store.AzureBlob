@@ -2,25 +2,26 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 
 namespace Lucene.Net.Store
 {
     public abstract class AzureBlobDirectoryBase : BaseDirectory
     {
-        private readonly CloudBlobContainer blobContainer;
+        private readonly BlobContainerClient blobContainerClient;
         private readonly string blobPrefix;
 
         private readonly ConcurrentDictionary<string, CachedInput> cachedInputs =
             new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
-        private readonly ConcurrentDictionary<string, CloudBlob> lastKnownBlobs =
-            new ConcurrentDictionary<string, CloudBlob>(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, long> lastKnownBlobSizes =
+            new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
 
-        public AzureBlobDirectoryBase(CloudBlobContainer blobContainer, string blobPrefix, AzureBlobDirectoryOptions options)
+        public AzureBlobDirectoryBase(BlobContainerClient blobContainerClient, string blobPrefix, AzureBlobDirectoryOptions options)
         {
-            this.blobContainer = blobContainer ?? throw new ArgumentNullException(nameof(blobContainer));
+            this.blobContainerClient = blobContainerClient ?? throw new ArgumentNullException(nameof(blobContainerClient));
 
             if (null == blobPrefix)
             {
@@ -34,7 +35,7 @@ namespace Lucene.Net.Store
             this.blobPrefix = blobPrefix;
             Options = options ?? new AzureBlobDirectoryOptions();
 
-            SetLockFactory(new AzureBlobLockFactory(blobContainer));
+            SetLockFactory(new AzureBlobLockFactory(blobContainerClient));
         }
 
         #region Directory Implementation
@@ -52,96 +53,102 @@ namespace Lucene.Net.Store
 
         protected bool IsInLastKnownBlobs(string name)
         {
-            return lastKnownBlobs.ContainsKey(name);
+            return lastKnownBlobSizes.ContainsKey(name);
         }
 
         protected void DownloadBlobToFile(string sourceName, string targetPath)
         {
-            CloudBlob blob = GetBlob(sourceName);
+            BlobClient blobClient = GetBlobClient(sourceName);
 
             try
             {
-                blob.DownloadToFile(targetPath, FileMode.Create);
+                blobClient.DownloadTo(targetPath);
             }
-            catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
+            catch (RequestFailedException ex) when (ex.Status == 404)
             {
-                throw new FileNotFoundException($"The blob '{blob.Name}' does not exist.", sourceName, ex);
+                throw new FileNotFoundException($"The blob '{blobClient.Name}' does not exist.", sourceName, ex);
             }
         }
 
-        protected void UploadFileToBlob(string targetName, string sourcePath, AccessCondition accessCondition = null)
+        protected void UploadFileToBlob(string targetName, string sourcePath, BlobUploadOptions uploadOptions = null)
         {
-            CloudBlockBlob blob = GetBlob(targetName);
-            blob.UploadFromFile(sourcePath, accessCondition, null, null);
-            lastKnownBlobs.TryAdd(targetName, blob);
+            BlobClient blobClient = GetBlobClient(targetName);
+            blobClient.Upload(sourcePath, uploadOptions ?? new BlobUploadOptions());
+
+            // This is ugly yet the best option available to determine the size of the blob we've just uploaded -- the
+            // Blob REST APIs don't give us the size of the uploaded content.
+            FileInfo file = new FileInfo(sourcePath);
+            lastKnownBlobSizes.TryAdd(targetName, file.Length);
         }
 
         protected void DeleteBlob(string name)
         {
-            CloudBlockBlob blob = GetBlob(name);
-            blob.DeleteIfExists();
-            lastKnownBlobs.TryRemove(name, out _);
+            BlobClient blobClient = GetBlobClient(name);
+            blobClient.DeleteIfExists();
+            lastKnownBlobSizes.TryRemove(name, out _);
         }
 
         protected bool BlobExists(string name)
         {
-            if (lastKnownBlobs.ContainsKey(name))
+            if (lastKnownBlobSizes.ContainsKey(name))
             {
                 return true;
             }
 
-            CloudBlockBlob blob = GetBlob(name);
+            BlobClient blobClient = GetBlobClient(name);
 
-            return blob.Exists();
+            return blobClient.Exists();
         }
 
         protected long GetBlobLength(string name)
         {
-            if (!lastKnownBlobs.TryGetValue(name, out CloudBlob blob))
+            if (!lastKnownBlobSizes.TryGetValue(name, out long length))
             {
-                blob = GetBlob(name);
+                BlobClient blobClient = GetBlobClient(name);
                 try
                 {
-                    blob.FetchAttributes();
+                    Response<BlobProperties> response = blobClient.GetProperties();
+                    lastKnownBlobSizes.TryAdd(name, length = response.Value.ContentLength);
                 }
-                catch (StorageException ex) when (ex.RequestInformation?.HttpStatusCode == 404)
+                catch (RequestFailedException ex) when (ex.Status == 404)
                 {
                     throw new FileNotFoundException($"The blob '{name}' does not exist.", name, ex);
                 }
-
-                lastKnownBlobs.TryAdd(name, blob);
             }
 
-            return blob.Properties.Length;
+            return length;
         }
 
-        protected IEnumerable<CloudBlob> ListBlobs()
+        protected IEnumerable<BlobItem> ListBlobs()
         {
-            IEnumerable<CloudBlob> blobs = blobContainer
-                .ListBlobs(blobPrefix, useFlatBlobListing: false, BlobListingDetails.Metadata)
-                .OfType<CloudBlob>();
-            List<CloudBlob> blobList = new List<CloudBlob>();
+            IEnumerable<BlobItem> blobs = blobContainerClient.GetBlobs(prefix: blobPrefix);
+            List<BlobItem> blobList = new List<BlobItem>();
 
-            lastKnownBlobs.Clear();
+            lastKnownBlobSizes.Clear();
 
-            foreach (CloudBlob blob in blobs)
+            foreach (BlobItem blob in blobs)
             {
                 string name = ExtractBlobName(blob);
-                lastKnownBlobs.TryAdd(name, blob);
+                lastKnownBlobSizes.TryAdd(name, blob.Properties.ContentLength.Value);
                 blobList.Add(blob);
             }
 
             return blobList;
         }
 
-        protected string ExtractBlobName(CloudBlob blob)
+        protected string ExtractBlobName(BlobItem blob)
         {
             return Path.GetFileName(blob.Name);
         }
 
-        protected CloudBlockBlob GetBlob(string name)
+        protected BlobClient GetBlobClient(string name)
         {
-            return blobContainer.GetBlockBlobReference(blobPrefix + name);
+            return blobContainerClient.GetBlobClient(blobPrefix + name);
+        }
+
+        protected BlockBlobClient GetBlockBlobClient(string name)
+        {
+            return blobContainerClient.GetBlockBlobClient(blobPrefix + name);
         }
 
         #endregion

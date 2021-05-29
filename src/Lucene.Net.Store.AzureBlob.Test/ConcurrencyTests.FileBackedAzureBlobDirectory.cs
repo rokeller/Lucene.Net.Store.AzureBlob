@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
-using Microsoft.Azure.Storage.Blob;
 using Xunit.Abstractions;
 using Xunit;
 
@@ -42,13 +42,13 @@ namespace Lucene.Net.Store
 
         protected override Directory GetDirectory(string containerName, string prefix)
         {
-            CloudBlobContainer container = Utils.GetBlobClient().GetContainerReference(containerName);
+            BlobContainerClient containerClient = Utils.GetBlobContainerClient(containerName);
             DirectoryInfo dir = new DirectoryInfo(Path.Combine(rootDir.FullName, prefix, Interlocked.Increment(ref localDirectoryIndex).ToString()));
             dir.Create();
             FSDirectory fsDirectory = FSDirectory.Open(dir);
             fsDirectories.Add(fsDirectory);
 
-            return new FileBackedAzureBlobDirectory(fsDirectory, container, prefix);
+            return new FileBackedAzureBlobDirectory(fsDirectory, containerClient, prefix);
         }
 
         [Fact]

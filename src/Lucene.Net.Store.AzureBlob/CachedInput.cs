@@ -1,24 +1,27 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using Microsoft.Azure.Storage.Blob;
+using Azure;
+using Azure.Storage.Blobs.Models;
 
 namespace Lucene.Net.Store
 {
     internal sealed class CachedInput
     {
-        private CachedInput(string eTag, RAMFile file)
+        private CachedInput(ETag eTag, RAMFile file)
         {
             ETag = eTag;
             File = file;
         }
 
-        public string ETag { get; }
+        public ETag ETag { get; }
         public RAMFile File { get; }
 
-        internal static CachedInput Create(string name, CloudBlob blob, Stream stream)
+        internal static CachedInput Create(string name, BlobDownloadInfo blobDownloadInfo)
         {
-            return new CachedInput(blob.Properties.ETag, CacheFile.FromStream(blob.Properties.Length, stream));
+            return new CachedInput(
+                blobDownloadInfo.Details.ETag,
+                CacheFile.FromStream(blobDownloadInfo.ContentLength, blobDownloadInfo.Content));
         }
 
         private sealed class CacheFile : RAMFile

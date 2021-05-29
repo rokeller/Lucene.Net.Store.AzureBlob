@@ -1,10 +1,11 @@
 using System;
 using System.IO;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
-using Microsoft.Azure.Storage.Blob;
 using Xunit;
 
 namespace Lucene.Net.Store
@@ -12,43 +13,41 @@ namespace Lucene.Net.Store
     [Collection("AppInsights")]
     public sealed class AzureBlobDirectoryTests : TestBase, IDisposable
     {
-        private readonly CloudBlobContainer blobContainer;
+        private readonly BlobContainerClient blobContainerClient;
         private AzureBlobDirectory dir;
 
         public AzureBlobDirectoryTests(AppInsightsFixture appInsightsFixture)
         : base(appInsightsFixture)
         {
-            CloudBlobClient blobClient = Utils.GetBlobClient();
-
-            blobContainer = blobClient.GetContainerReference("azureblobdirectory-test-" + Utils.GenerateRandomInt(1000));
-            blobContainer.CreateIfNotExists();
+            blobContainerClient = Utils.GetBlobContainerClient("azureblobdirectory-test-" + Utils.GenerateRandomInt(1000));
+            blobContainerClient.CreateIfNotExists();
         }
 
         public override void Dispose()
         {
             using (dir) { }
-            blobContainer.DeleteIfExists();
+            blobContainerClient.DeleteIfExists();
             base.Dispose();
         }
 
         [Fact]
         public void FileLengthReturnsCorrectLength()
         {
-            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("sample-file");
+            BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("sample-file");
             int len = 100 + Utils.Rng.Next(1234);
-            using (Stream stream = blob.OpenWrite())
+            using (Stream stream = blobClient.OpenWrite(true))
             {
                 stream.Write(Utils.GenerateRandomBuffer(len), 0, len);
             }
 
-            dir = new AzureBlobDirectory(blobContainer, null);
+            dir = new AzureBlobDirectory(blobContainerClient, null);
             Assert.Equal((long)len, dir.FileLength("sample-file"));
         }
 
         [Fact]
         public void FileLengthThrowsWhenBlobDoesNotExist()
         {
-            dir = new AzureBlobDirectory(blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
+            dir = new AzureBlobDirectory(blobContainerClient, "FileLengthThrowsWhenBlobDoesNotExist");
 
             Assert.Throws<FileNotFoundException>(() => dir.FileLength("does-not-exist"));
         }
@@ -58,7 +57,7 @@ namespace Lucene.Net.Store
         [InlineData("random")]
         public void FileExistsReturnsFalseWhenFilesDoNotExist(string name)
         {
-            dir = new AzureBlobDirectory(blobContainer, "FileExistsReturnsFalseWhenFilesDoNotExist");
+            dir = new AzureBlobDirectory(blobContainerClient, "FileExistsReturnsFalseWhenFilesDoNotExist");
 
 #pragma warning disable 618
             Assert.False(dir.FileExists(name));
@@ -68,7 +67,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void FileExistsWorks()
         {
-            dir = new AzureBlobDirectory(blobContainer, "FileExistsWorks");
+            dir = new AzureBlobDirectory(blobContainerClient, "FileExistsWorks");
 
             IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
             {
@@ -98,7 +97,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void WriteThenReadWorks()
         {
-            dir = new AzureBlobDirectory(blobContainer, "WriteThenReadWorks");
+            dir = new AzureBlobDirectory(blobContainerClient, "WriteThenReadWorks");
 
             string[] ids = { Utils.GenerateRandomString(10), Utils.GenerateRandomString(10), Utils.GenerateRandomString(10), };
 
@@ -181,7 +180,7 @@ namespace Lucene.Net.Store
             {
                 CacheSegmentsGen = true,
             };
-            dir = new AzureBlobDirectory(blobContainer, "CachingOfSegmentsGenWorks", options);
+            dir = new AzureBlobDirectory(blobContainerClient, "CachingOfSegmentsGenWorks", options);
 
             IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
             {

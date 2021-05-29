@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
-using Microsoft.Azure.Storage.Blob;
 using Xunit;
 
 namespace Lucene.Net.Store
@@ -13,7 +14,7 @@ namespace Lucene.Net.Store
     [Collection("AppInsights")]
     public sealed class FileBackedAzureBlobDirectoryTests : TestBase, IDisposable
     {
-        private readonly CloudBlobContainer blobContainer;
+        private readonly BlobContainerClient blobContainerClient;
         private readonly DirectoryInfo rootDir;
         private readonly FSDirectory fsDirectory;
         private FileBackedAzureBlobDirectory dir;
@@ -21,19 +22,18 @@ namespace Lucene.Net.Store
         public FileBackedAzureBlobDirectoryTests(AppInsightsFixture appInsightsFixture)
         : base(appInsightsFixture)
         {
-            CloudBlobClient blobClient = Utils.GetBlobClient();
             int random = Utils.GenerateRandomInt(1000);
             rootDir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "filebackedazureblobdirectory-test-" + random));
             fsDirectory = FSDirectory.Open(rootDir);
 
-            blobContainer = blobClient.GetContainerReference("filebackedazureblobdirectory-test-" + random);
-            blobContainer.CreateIfNotExists();
+            blobContainerClient = Utils.GetBlobContainerClient("filebackedazureblobdirectory-test-" + random);
+            blobContainerClient.CreateIfNotExists();
         }
 
         public override void Dispose()
         {
             using (dir) { }
-            blobContainer.DeleteIfExists();
+            blobContainerClient.DeleteIfExists();
             rootDir.Refresh();
             if (rootDir.Exists)
             {
@@ -45,28 +45,28 @@ namespace Lucene.Net.Store
         [Fact]
         public void CtorValidatesInput()
         {
-            Assert.Throws<ArgumentNullException>("fsDirectory", () => new FileBackedAzureBlobDirectory(null, blobContainer, null));
-            Assert.Throws<ArgumentNullException>("blobContainer", () => new FileBackedAzureBlobDirectory(fsDirectory, null, null));
+            Assert.Throws<ArgumentNullException>("fsDirectory", () => new FileBackedAzureBlobDirectory(null, blobContainerClient, null));
+            Assert.Throws<ArgumentNullException>("blobContainerClient", () => new FileBackedAzureBlobDirectory(fsDirectory, null, null));
         }
 
         [Fact]
         public void FileLengthReturnsCorrectLength()
         {
-            CloudBlockBlob blob = blobContainer.GetBlockBlobReference("sample-file");
+            BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("sample-file");
             int len = 100 + Utils.Rng.Next(1234);
-            using (Stream stream = blob.OpenWrite())
+            using (Stream stream = blobClient.OpenWrite(true))
             {
                 stream.Write(Utils.GenerateRandomBuffer(len), 0, len);
             }
 
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, null);
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, null);
             Assert.Equal((long)len, dir.FileLength("sample-file"));
         }
 
         [Fact]
         public void FileLengthThrowsWhenBlobDoesNotExist()
         {
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "FileLengthThrowsWhenBlobDoesNotExist");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "FileLengthThrowsWhenBlobDoesNotExist");
 
             Assert.Throws<FileNotFoundException>(() => dir.FileLength("does-not-exist"));
         }
@@ -76,7 +76,7 @@ namespace Lucene.Net.Store
         [InlineData("random")]
         public void FileExistsReturnsFalseWhenFilesDoNotExist(string name)
         {
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "FileExistsReturnsFalseWhenFilesDoNotExist");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "FileExistsReturnsFalseWhenFilesDoNotExist");
 
 #pragma warning disable 618
             Assert.False(dir.FileExists(name));
@@ -86,7 +86,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void FileExistsWorks()
         {
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "FileExistsWorks");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "FileExistsWorks");
 
             IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
             {
@@ -116,7 +116,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void WriteThenReadWorks()
         {
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "WriteThenReadWorks");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "WriteThenReadWorks");
 
             string[] ids = { Utils.GenerateRandomString(10), Utils.GenerateRandomString(10), Utils.GenerateRandomString(10), };
 
@@ -199,7 +199,7 @@ namespace Lucene.Net.Store
             {
                 CacheSegmentsGen = true,
             };
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "CachingOfSegmentsGenWorks", options);
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "CachingOfSegmentsGenWorks", options);
 
             IndexWriterConfig writerConfig = new IndexWriterConfig(Utils.Version, Utils.StandardAnalyzer)
             {
@@ -215,6 +215,7 @@ namespace Lucene.Net.Store
             }
 
 #pragma warning disable 618
+            Assert.True(fsDirectory.FileExists(IndexFileNames.SEGMENTS_GEN));
             Assert.True(dir.FileExists(IndexFileNames.SEGMENTS_GEN));
 #pragma warning restore 618
 
@@ -234,7 +235,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void OpenInputThrowsForMissingFilesOnFsDirectory()
         {
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "OpenInputThrowsForMissingFiles");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "OpenInputThrowsForMissingFiles");
 
             Assert.Throws<DirectoryNotFoundException>(() => dir.OpenInput("does-not-exist", IOContext.DEFAULT));
         }
@@ -242,7 +243,7 @@ namespace Lucene.Net.Store
         [Fact]
         public void OpenInputThrowsForMissingFilesInAzure()
         {
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "OpenInputThrowsForMissingFiles");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "OpenInputThrowsForMissingFiles");
 
             if (!fsDirectory.Directory.Exists)
             {
@@ -256,7 +257,7 @@ namespace Lucene.Net.Store
         public void SyncDoesNotUploadFilesThatExistExceptForSegmentsGen()
         {
             List<string> filesToSync = new List<string>() { "random", IndexFileNames.SEGMENTS_GEN };
-            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainer, "SyncDoesNotUploadFilesThatExistExceptForSegmentsGen");
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, "SyncDoesNotUploadFilesThatExistExceptForSegmentsGen");
 
             if (!fsDirectory.Directory.Exists)
             {

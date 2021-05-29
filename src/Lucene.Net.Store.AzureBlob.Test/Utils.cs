@@ -1,10 +1,9 @@
 using System;
 using System.Text;
+using Azure.Storage.Blobs;
 using Lucene.Net.Analysis;
 using Lucene.Net.Analysis.Standard;
 using Lucene.Net.Util;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
 
 namespace Lucene.Net.Store
 {
@@ -20,12 +19,14 @@ namespace Lucene.Net.Store
 
         public static readonly string StorageConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING") ?? "UseDevelopmentStorage=true";
 
-        public static CloudBlobClient GetBlobClient()
+        public static BlobServiceClient GetBlobServiceClient()
         {
-            CloudStorageAccount storageAcct = CloudStorageAccount.Parse(StorageConnectionString);
-            CloudBlobClient blobClient = storageAcct.CreateCloudBlobClient();
+            return new BlobServiceClient(StorageConnectionString);
+        }
 
-            return blobClient;
+        public static BlobContainerClient GetBlobContainerClient(string containerName)
+        {
+            return GetBlobServiceClient().GetBlobContainerClient(containerName);
         }
 
         public static string GenerateRandomString(int len)
