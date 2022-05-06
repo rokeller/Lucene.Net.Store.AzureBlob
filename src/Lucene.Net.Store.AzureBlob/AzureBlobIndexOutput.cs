@@ -6,15 +6,12 @@ namespace Lucene.Net.Store
 {
     internal sealed class AzureBlobIndexOutput : BufferedIndexOutput
     {
-        private readonly BlockBlobClient blobClient;
         private readonly Stream stream;
 
         private long len;
 
         public AzureBlobIndexOutput(BlockBlobClient blobClient)
         {
-            this.blobClient = blobClient;
-
             stream = blobClient.OpenWrite(overwrite: true);
         }
 

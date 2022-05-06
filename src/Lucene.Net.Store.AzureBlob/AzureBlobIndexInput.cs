@@ -59,10 +59,10 @@ namespace Lucene.Net.Store
         public override object Clone()
         {
             // TODO: Do this right: Keep track of the master input, and dispose all clones when the master is disposed.
-            Stream stream = blobClient.OpenRead();
-            AzureBlobIndexInput clone = new AzureBlobIndexInput(blobClient, Length, stream);
+            Stream newStream = blobClient.OpenRead();
+            AzureBlobIndexInput clone = new AzureBlobIndexInput(blobClient, Length, newStream);
 
-            clone.stream.Seek(stream.Position, SeekOrigin.Begin);
+            clone.stream.Seek(newStream.Position, SeekOrigin.Begin);
 
             return clone;
         }

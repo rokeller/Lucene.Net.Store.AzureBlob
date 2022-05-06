@@ -14,12 +14,10 @@ namespace Lucene.Net.Store
         private readonly BlobContainerClient blobContainerClient;
         private readonly string blobPrefix;
 
-        private readonly ConcurrentDictionary<string, CachedInput> cachedInputs =
-            new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, long> lastKnownBlobSizes =
             new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
 
-        public AzureBlobDirectoryBase(BlobContainerClient blobContainerClient, string blobPrefix, AzureBlobDirectoryOptions options)
+        protected AzureBlobDirectoryBase(BlobContainerClient blobContainerClient, string blobPrefix, AzureBlobDirectoryOptions options)
         {
             this.blobContainerClient = blobContainerClient ?? throw new ArgumentNullException(nameof(blobContainerClient));
 
@@ -108,7 +106,8 @@ namespace Lucene.Net.Store
                 try
                 {
                     Response<BlobProperties> response = blobClient.GetProperties();
-                    lastKnownBlobSizes.TryAdd(name, length = response.Value.ContentLength);
+                    length = response.Value.ContentLength;
+                    lastKnownBlobSizes.TryAdd(name, length);
                 }
                 catch (RequestFailedException ex) when (ex.Status == 404)
                 {

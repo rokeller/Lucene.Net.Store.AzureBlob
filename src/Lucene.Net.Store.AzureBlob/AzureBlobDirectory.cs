@@ -15,8 +15,7 @@ namespace Lucene.Net.Store
         private readonly ConcurrentDictionary<string, CachedInput> cachedInputs = new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
 
         public AzureBlobDirectory(BlobContainerClient blobContainerClient, string blobPrefix) : this(blobContainerClient, blobPrefix, null)
-        {
-        }
+        { }
 
         public AzureBlobDirectory(BlobContainerClient blobContainerClient, string blobPrefix, AzureBlobDirectoryOptions options)
         : base(blobContainerClient, blobPrefix, options)
@@ -109,7 +108,7 @@ namespace Lucene.Net.Store
                 Response<BlobDownloadInfo> response = blobClient.Download(conditions: requestConditions);
                 if (ShouldCache(name))
                 {
-                    if (response.GetRawResponse().Status == 304)
+                    if (null != cachedInput && response.GetRawResponse().Status == 304)
                     {
                         // The ETag hasn't changed because the content hasn't changed, so we can return the cached data.
                         return new RAMInputStream(name, cachedInput.File);

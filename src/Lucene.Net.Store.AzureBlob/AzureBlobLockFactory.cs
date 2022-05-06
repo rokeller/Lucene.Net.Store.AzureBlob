@@ -43,7 +43,8 @@ namespace Lucene.Net.Store
             {
                 if (!locks.TryGetValue(canonicalName, out AzureBlobLock l))
                 {
-                    locks.Add(canonicalName, l = new AzureBlobLock(GetLockBlob(lockName), blobLeaseClientFactory));
+                    l = new AzureBlobLock(GetLockBlob(lockName), blobLeaseClientFactory);
+                    locks.Add(canonicalName, l);
                 }
 
                 return l;
