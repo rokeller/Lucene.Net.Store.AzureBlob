@@ -29,10 +29,7 @@ namespace Lucene.Net.Store
 
         public override long Length { get; }
 
-        public override long GetFilePointer()
-        {
-            return stream.Position;
-        }
+        public override long Position { get { return stream.Position; } }
 
         public override byte ReadByte()
         {
