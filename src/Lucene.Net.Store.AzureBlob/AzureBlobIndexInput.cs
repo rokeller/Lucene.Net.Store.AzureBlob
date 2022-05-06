@@ -1,13 +1,11 @@
 using System.IO;
 using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
 
 namespace Lucene.Net.Store
 {
     internal sealed class AzureBlobIndexInput : IndexInput
     {
         private readonly BlobClient blobClient;
-        private readonly BlobDownloadInfo blobDownloadInfo;
         private readonly Stream stream;
 
         public AzureBlobIndexInput(BlobClient blobClient, long length, Stream stream) : base(blobClient.Uri.OriginalString)
@@ -15,16 +13,6 @@ namespace Lucene.Net.Store
             this.blobClient = blobClient;
             this.stream = stream;
             Length = length;
-        }
-
-        public AzureBlobIndexInput(BlobClient blobClient, BlobDownloadInfo blobDownloadInfo) : base(blobClient.Uri.OriginalString)
-        {
-            // As the blobDownloadInfo is passed to this object, its ownership is also transferred. This means that we
-            // will be responsible to dispose of it when disposing of this instance.
-            this.blobClient = blobClient;
-            this.blobDownloadInfo = blobDownloadInfo;
-            this.stream = blobDownloadInfo.Content;
-            Length = blobDownloadInfo.ContentLength;
         }
 
         public override long Length { get; }
@@ -72,7 +60,6 @@ namespace Lucene.Net.Store
             if (disposing)
             {
                 stream.Dispose();
-                blobDownloadInfo?.Dispose();
             }
         }
     }

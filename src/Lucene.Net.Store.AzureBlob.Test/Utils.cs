@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Text;
 using Azure.Storage.Blobs;
 using Lucene.Net.Analysis;
@@ -58,6 +59,20 @@ namespace Lucene.Net.Store
         public static int GenerateRandomInt(int min, int max)
         {
             return Rng.Next(min, max);
+        }
+
+        public static void WriteRepeatedly(Stream target, int len, string text)
+        {
+            Span<byte> buffer = stackalloc byte[Encoding.ASCII.GetByteCount(text)];
+            Encoding.ASCII.GetBytes(text, buffer);
+            int remaining = len;
+
+            while (remaining > 0)
+            {
+                int toWrite = Math.Min(buffer.Length, remaining);
+                target.Write(buffer.Slice(0, toWrite));
+                remaining -= toWrite;
+            }
         }
     }
 }

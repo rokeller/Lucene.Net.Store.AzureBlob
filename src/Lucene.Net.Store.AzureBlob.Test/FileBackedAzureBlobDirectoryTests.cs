@@ -308,5 +308,38 @@ namespace Lucene.Net.Store
                 Assert.Equal("This is segments.gen v2", random.ReadString());
             }
         }
+
+        [Fact]
+        public void OpenInputReturnsSeekableInput()
+        {
+            BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("OpenInputReturnsSeekableInput");
+            int len = 32 * 1024;
+            using (Stream stream = blobClient.OpenWrite(true))
+            {
+                Utils.WriteRepeatedly(stream, len, "DeadBeef");
+            }
+            rootDir.Create();
+
+            dir = new FileBackedAzureBlobDirectory(fsDirectory, blobContainerClient, null);
+            using IndexInput input = dir.OpenInput("OpenInputReturnsSeekableInput", IOContext.DEFAULT);
+
+            const long Aligned = 0x4465616442656566;
+            const long OffsetBy4 = 0x4265656644656164;
+
+            Assert.Equal(Aligned, input.ReadInt64());
+            Assert.Equal(Aligned, input.ReadInt64());
+
+            input.Seek(4);
+            Assert.Equal(OffsetBy4, input.ReadInt64());
+            Assert.Equal(OffsetBy4, input.ReadInt64());
+
+            input.Seek(20 * 1024);
+            Assert.Equal(Aligned, input.ReadInt64());
+            Assert.Equal(Aligned, input.ReadInt64());
+
+            input.Seek(2 * 1024 + 4);
+            Assert.Equal(OffsetBy4, input.ReadInt64());
+            Assert.Equal(OffsetBy4, input.ReadInt64());
+        }
     }
 }

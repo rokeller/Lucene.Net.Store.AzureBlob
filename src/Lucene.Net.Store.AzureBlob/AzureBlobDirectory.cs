@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Azure;
@@ -89,8 +90,9 @@ namespace Lucene.Net.Store
         {
             BlobClient blobClient = GetBlobClient(name);
             BlobRequestConditions requestConditions = null;
+            bool shouldCache = ShouldCache(name);
 
-            if (cachedInputs.Count > 0 && cachedInputs.TryGetValue(name, out CachedInput cachedInput))
+            if (shouldCache && cachedInputs.TryGetValue(name, out CachedInput cachedInput))
             {
                 // Use an access condition with 'If-None-Match' using the ETag of the currently cached version.
                 requestConditions = new BlobRequestConditions()
@@ -105,29 +107,37 @@ namespace Lucene.Net.Store
 
             try
             {
-                Response<BlobDownloadInfo> response = blobClient.Download(conditions: requestConditions);
-                if (ShouldCache(name))
+                if (shouldCache)
                 {
-                    if (null != cachedInput && response.GetRawResponse().Status == 304)
+                    // We should cache the file; make sure we already use the latest version or download and cache it.
+                    Response<BlobDownloadInfo> response = blobClient.Download(conditions: requestConditions);
+                    using (Response rawResponse = response.GetRawResponse())
                     {
-                        // The ETag hasn't changed because the content hasn't changed, so we can return the cached data.
-                        return new RAMInputStream(name, cachedInput.File);
-                    }
+                        if (null == cachedInput || rawResponse.Status == 200)
+                        {
+                            // The response status code can be 304 only when we already have the same version of the
+                            // blob in our cache. Otherwise, if the input is not yet cached, or if the content has
+                            // changed, we must have received the blob's content with a status code of 200.
+                            Debug.Assert(rawResponse.Status == 200, "We must have received the blob content.");
 
-                    // Since we cache the downloaded content in memory, we need to dispose of the download info
-                    // here and don't need to transfer ownership to another owner.
-                    using (BlobDownloadInfo blobDownloadInfo = response.Value)
-                    {
-                        // Download the file into the cache, and serve it from there.
-                        cachedInput = CachedInput.Create(name, blobDownloadInfo);
-                        cachedInputs[name] = cachedInput;
+                            using (BlobDownloadInfo blobDownloadInfo = response.Value)
+                            {
+                                // Create a new cached IndexInput with the blob's content.
+                                cachedInput = CachedInput.Create(name, blobDownloadInfo);
+                                cachedInputs[name] = cachedInput;
+                            }
+                        }
 
+                        Debug.Assert(cachedInputs.ContainsKey(name), "The file must exist in the cache.");
+
+                        // Serve the file from the cache.
                         return new RAMInputStream(name, cachedInput.File);
                     }
                 }
 
-                // This also transfers ownership of the BlobDownloadInfo from the response to the AzureBlobIndexInput.
-                return new AzureBlobIndexInput(blobClient, response.Value);
+                Stream stream = blobClient.OpenRead();
+                // Pass ownership of the stream to the new AzureBlobIndexInput object, which must dispose the stream.
+                return new AzureBlobIndexInput(blobClient, stream.Length, stream);
             }
             catch (RequestFailedException ex) when (ex.Status == 404)
             {
