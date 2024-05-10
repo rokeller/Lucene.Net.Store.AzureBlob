@@ -79,7 +79,7 @@ namespace Lucene.Net.Store.AzureBlob.Test
                     DateTimeOffset.UtcNow,
                     null, null, null, null, 1)));
             mockBlobLeaseClient
-                .Setup(c => c.Acquire(TimeSpan.FromMinutes(1), null, default))
+                .Setup(c => c.Acquire(TimeSpan.FromMinutes(1), null, default(CancellationToken)))
                 .Throws(new RequestFailedException(409, "Injected error"));
 
             theLock = new AzureBlobLock(mockBlobClient.Object, mockLeaseClientFactory.Object);
@@ -110,7 +110,7 @@ namespace Lucene.Net.Store.AzureBlob.Test
                     DateTimeOffset.UtcNow,
                     null, null, null, null, 1)));
             mockBlobLeaseClient
-                .Setup(c => c.Acquire(TimeSpan.FromMinutes(1), null, default))
+                .Setup(c => c.Acquire(TimeSpan.FromMinutes(1), null, default(CancellationToken)))
                 .Returns(new TestResponse<BlobLease>(BlobsModelFactory.BlobLease(
                     new ETag("1234"),
                     DateTimeOffset.UtcNow,

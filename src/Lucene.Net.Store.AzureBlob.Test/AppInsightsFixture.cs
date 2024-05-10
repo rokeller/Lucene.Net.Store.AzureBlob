@@ -18,15 +18,14 @@ namespace Lucene.Net.Store
         {
             TelemetryConfiguration configuration = TelemetryConfiguration.CreateDefault();
 
-            string instrumentationKey = Environment.GetEnvironmentVariable("INSTRUMENTATION_KEY");
-            if (String.IsNullOrWhiteSpace(instrumentationKey))
+            string connStr = Environment.GetEnvironmentVariable("INSTRUMENTATION_CONNECTION_STRING");
+            if (String.IsNullOrWhiteSpace(connStr))
             {
-                configuration.InstrumentationKey = "INVALID_KEY";
                 configuration.TelemetryChannel = new NullTelemetryChannel();
             }
             else
             {
-                configuration.InstrumentationKey = instrumentationKey;
+                configuration.ConnectionString = connStr;
             }
 
             configuration.TelemetryInitializers.Add(new HttpDependenciesParsingTelemetryInitializer());
