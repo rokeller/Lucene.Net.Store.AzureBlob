@@ -15,10 +15,13 @@ namespace Lucene.Net.Store
             Length = length;
         }
 
+        /// <inheritdoc/>
         public override long Length { get; }
 
+        /// <inheritdoc/>
         public override long Position { get { return stream.Position; } }
 
+        /// <inheritdoc/>
         public override byte ReadByte()
         {
             int res = stream.ReadByte();
@@ -31,11 +34,13 @@ namespace Lucene.Net.Store
             return (byte)res;
         }
 
+        /// <inheritdoc/>
         public override void ReadBytes(byte[] b, int offset, int len)
         {
             stream.FillBuffer(b, offset, len);
         }
 
+        /// <inheritdoc/>
         public override void Seek(long pos)
         {
             if (stream.Position != pos)
@@ -44,6 +49,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         public override object Clone()
         {
             // TODO: Do this right: Keep track of the master input, and dispose all clones when the master is disposed.
@@ -55,6 +61,7 @@ namespace Lucene.Net.Store
             return clone;
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)

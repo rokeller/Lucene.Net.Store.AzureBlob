@@ -9,10 +9,28 @@ using Lucene.Net.Index;
 
 namespace Lucene.Net.Store
 {
+    /// <summary>
+    /// Implements a <see cref="Directory"/> that automatically syncs directory
+    /// files from Azure blobs to a local directory.
+    /// </summary>
     public class FileBackedAzureBlobDirectory : AzureBlobDirectoryBase
     {
         private readonly FSDirectory fsDirectory;
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="FileBackedAzureBlobDirectory"/>.
+        /// </summary>
+        /// <param name="fsDirectory">
+        /// An instance of <see cref="FSDirectory"/> where copies of the directory
+        /// files from Azure should be cached.
+        /// </param>
+        /// <param name="blobContainerClient">
+        /// The <see cref="BlobContainerClient"/> to use to manage directory files
+        /// in Azure blobs.
+        /// </param>
+        /// <param name="blobPrefix">
+        /// The blob prefix to use for directory files.
+        /// </param>
         public FileBackedAzureBlobDirectory(
             FSDirectory fsDirectory,
             BlobContainerClient blobContainerClient,
@@ -20,6 +38,27 @@ namespace Lucene.Net.Store
         : this(fsDirectory, blobContainerClient, blobPrefix, null)
         { }
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="FileBackedAzureBlobDirectory"/>.
+        /// </summary>
+        /// <param name="fsDirectory">
+        /// An instance of <see cref="FSDirectory"/> where copies of the directory
+        /// files from Azure should be cached.
+        /// </param>
+        /// <param name="blobContainerClient">
+        /// The <see cref="BlobContainerClient"/> to use to manage directory files
+        /// in Azure blobs.
+        /// </param>
+        /// <param name="blobPrefix">
+        /// The blob prefix to use for directory files.
+        /// </param>
+        /// <param name="options">
+        /// An instance of <see cref="AzureBlobDirectoryOptions"/> that defines
+        /// options for this instance.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the <paramref name="fsDirectory"/> is <c>null</c>.
+        /// </exception>
         public FileBackedAzureBlobDirectory(
             FSDirectory fsDirectory,
             BlobContainerClient blobContainerClient,
@@ -30,11 +69,13 @@ namespace Lucene.Net.Store
             this.fsDirectory = fsDirectory ?? throw new ArgumentNullException(nameof(fsDirectory));
         }
 
+        /// <inheritdoc/>
         public override IndexOutput CreateOutput(string name, IOContext context)
         {
             return fsDirectory.CreateOutput(name, context);
         }
 
+        /// <inheritdoc/>
         public override void DeleteFile(string name)
         {
             fsDirectory.DeleteFile(name);
@@ -47,6 +88,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         [Obsolete("this method will be removed in 5.0")]
         public override bool FileExists(string name)
         {
@@ -62,6 +104,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         public override long FileLength(string name)
         {
 #pragma warning disable 618
@@ -76,6 +119,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         public override string[] ListAll()
         {
             HashSet<string> files = new HashSet<string>(
@@ -85,6 +129,7 @@ namespace Lucene.Net.Store
             return files.ToArray();
         }
 
+        /// <inheritdoc/>
         public override IndexInput OpenInput(string name, IOContext context)
         {
 #pragma warning disable 618
@@ -97,6 +142,7 @@ namespace Lucene.Net.Store
             return fsDirectory.OpenInput(name, context);
         }
 
+        /// <inheritdoc/>
         public override void Sync(ICollection<string> names)
         {
             fsDirectory.Sync(names);
@@ -130,6 +176,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)

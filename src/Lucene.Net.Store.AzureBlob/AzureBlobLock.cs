@@ -27,6 +27,7 @@ namespace Lucene.Net.Store
 
         #region Lock Implementation
 
+        /// <inheritdoc/>
         public override bool IsLocked()
         {
             try
@@ -43,6 +44,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         public override bool Obtain()
         {
             if (IsLocked())
@@ -71,6 +73,7 @@ namespace Lucene.Net.Store
             }
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
