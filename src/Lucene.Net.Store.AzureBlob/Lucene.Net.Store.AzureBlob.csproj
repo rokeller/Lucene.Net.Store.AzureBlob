@@ -1,21 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>$(LibraryTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Lucene.Net.Store</RootNamespace>
     <AssemblyName>Lucene.Net.Store.AzureBlob</AssemblyName>
+    <LangVersion>10.0</LangVersion>
+    <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lucene.Net" Version="4.8.0-beta*"/>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.*"/>
+  </ItemGroup>
+
+  <PropertyGroup Label="NuSpec">
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Authors>Roger Keller</Authors>
     <PackageDescription>Provides a Lucene.Net index Directory which persists data in Azure Blobs.
 
 Use the 0.* packages when you need to target Microsoft.Azure.Storage.Blob, and the 1.x packages when the newer Azure.Storage.Blobs is to be targeted.
     </PackageDescription>
     <PackageTags>lucene.net;lucene;directory;azure;blob;blobs;azuredirectory</PackageTags>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <DebugType>Embedded</DebugType>
+    <EmbedAllSources>True</EmbedAllSources>
+    <Features>strict</Features>
+    <RepositoryUrl>https://github.com/$(GITHUB_REPOSITORY)</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryBranch>$(GITHUB_REF_NAME)</RepositoryBranch>
+    <RepositoryCommit>$(GITHUB_SHA)</RepositoryCommit>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Lucene.Net" Version="4.8.0-beta*"/>
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.*"/>
-  </ItemGroup>
 </Project>
