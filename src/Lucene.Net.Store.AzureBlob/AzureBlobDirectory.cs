@@ -11,19 +11,45 @@ using Lucene.Net.Index;
 
 namespace Lucene.Net.Store
 {
+    /// <summary>
+    /// Implements a <see cref="Directory"/> using Azure blobs to persist
+    /// the files of the directory.
+    /// </summary>
     public class AzureBlobDirectory : AzureBlobDirectoryBase
     {
         private readonly ConcurrentDictionary<string, CachedInput> cachedInputs = new ConcurrentDictionary<string, CachedInput>(StringComparer.Ordinal);
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="AzureBlobDirectory"/>.
+        /// </summary>
+        /// <param name="blobContainerClient">
+        /// The <see cref="BlobContainerClient"/> to use to manage blobs.
+        /// </param>
+        /// <param name="blobPrefix">
+        /// The prefix to use for all blobs.
+        /// </param>
         public AzureBlobDirectory(BlobContainerClient blobContainerClient, string blobPrefix) : this(blobContainerClient, blobPrefix, null)
         { }
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="AzureBlobDirectory"/>.
+        /// </summary>
+        /// <param name="blobContainerClient">
+        /// The <see cref="BlobContainerClient"/> to use to manage blobs.
+        /// </param>
+        /// <param name="blobPrefix">
+        /// The prefix to use for all blobs.
+        /// </param>
+        /// <param name="options">
+        /// The <see cref="AzureBlobDirectoryOptions"/> to use.
+        /// </param>
         public AzureBlobDirectory(BlobContainerClient blobContainerClient, string blobPrefix, AzureBlobDirectoryOptions options)
         : base(blobContainerClient, blobPrefix, options)
         { }
 
         #region Directory Implementation
 
+        /// <inheritdoc/>
         public override IndexOutput CreateOutput(string name, IOContext context)
         {
             EnsureOpen();
@@ -31,6 +57,7 @@ namespace Lucene.Net.Store
             return new AzureBlobIndexOutput(GetBlockBlobClient(name));
         }
 
+        /// <inheritdoc/>
         public override void DeleteFile(string name)
         {
             EnsureOpen();
@@ -38,6 +65,7 @@ namespace Lucene.Net.Store
             DeleteBlob(name);
         }
 
+        /// <inheritdoc/>
         [Obsolete("this method will be removed in 5.0")]
         public override bool FileExists(string name)
         {
@@ -46,6 +74,7 @@ namespace Lucene.Net.Store
             return BlobExists(name);
         }
 
+        /// <inheritdoc/>
         public override long FileLength(string name)
         {
             EnsureOpen();
@@ -53,6 +82,7 @@ namespace Lucene.Net.Store
             return GetBlobLength(name);
         }
 
+        /// <inheritdoc/>
         public override string[] ListAll()
         {
             EnsureOpen();
@@ -62,6 +92,7 @@ namespace Lucene.Net.Store
             return names;
         }
 
+        /// <inheritdoc/>
         public override IndexInput OpenInput(string name, IOContext context)
         {
             EnsureOpen();
@@ -69,11 +100,13 @@ namespace Lucene.Net.Store
             return GetIndexInput(name);
         }
 
+        /// <inheritdoc/>
         public override void Sync(ICollection<string> names)
         {
             // Intentionally left blank: Azure blob output is already 'stable storage'.
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)

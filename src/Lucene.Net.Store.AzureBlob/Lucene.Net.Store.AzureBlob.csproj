@@ -5,7 +5,7 @@
     <AssemblyName>Lucene.Net.Store.AzureBlob</AssemblyName>
     <LangVersion>10.0</LangVersion>
     <IsPackable>true</IsPackable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
