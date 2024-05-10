@@ -4,7 +4,9 @@
         <Nullable>disable</Nullable>
         <LibraryTargetFrameworks>net6.0;net7.0;net8.0;netstandard2.0</LibraryTargetFrameworks>
         <TestTargetFrameworks>net6.0;net7.0;net8.0</TestTargetFrameworks>
-        <NoWarn>NU1605</NoWarn>
+
+        <!-- We're taking a dependency on non-release packages from Lucene.net -->
+        <NoWarn>$(NoWarn);NU5104</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup Label="SystemDependencyVersions">
