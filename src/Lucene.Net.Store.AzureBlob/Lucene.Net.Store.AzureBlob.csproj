@@ -15,7 +15,6 @@
 
   <PropertyGroup Label="NuSpec">
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <IncludeSymbols>true</IncludeSymbols>
     <Authors>Roger Keller</Authors>
     <PackageDescription>Provides a Lucene.Net index Directory which persists data in Azure Blobs.
 
