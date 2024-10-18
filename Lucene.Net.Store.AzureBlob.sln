@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2F4FABB1-D95
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lucene.Net.Store.AzureBlob", "src\Lucene.Net.Store.AzureBlob\Lucene.Net.Store.AzureBlob.csproj", "{59AD2DBA-1CDB-4D1B-BEB7-A93856713749}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lucene.Net.Store.AzureBlob.Test", "src\Lucene.Net.Store.AzureBlob.Test\Lucene.Net.Store.AzureBlob.Test.csproj", "{B905D7F0-987D-4AE0-901E-C19B877A49ED}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lucene.Net.Store.AzureBlob.Test", "test\Lucene.Net.Store.AzureBlob.Test\Lucene.Net.Store.AzureBlob.Test.csproj", "{B905D7F0-987D-4AE0-901E-C19B877A49ED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
