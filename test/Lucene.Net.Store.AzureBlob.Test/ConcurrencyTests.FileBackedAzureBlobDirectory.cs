@@ -15,9 +15,10 @@ namespace Lucene.Net.Store
     [Collection("AppInsights")]
     public sealed class FileBackedAzureBlobDirectoryConcurrencyTests : ConcurrencyTests, IDisposable
     {
-        private readonly DirectoryInfo rootDir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "concurrency-tests", "file-backed"));
+        private readonly DirectoryInfo rootDir = new(Path.Combine(
+            Path.GetTempPath(), Guid.NewGuid().ToString(), "concurrency-tests", "file-backed"));
 
-        private readonly List<FSDirectory> fsDirectories = new List<FSDirectory>();
+        private readonly List<FSDirectory> fsDirectories = [];
         private int localDirectoryIndex = 0;
 
         public FileBackedAzureBlobDirectoryConcurrencyTests(AppInsightsFixture appInsightsFixture, ITestOutputHelper output)
