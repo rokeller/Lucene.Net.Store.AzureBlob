@@ -207,7 +207,8 @@ namespace Lucene.Net.Store
         /// </returns>
         protected IEnumerable<BlobItem> ListBlobs()
         {
-            IEnumerable<BlobItem> blobs = blobContainerClient.GetBlobs(prefix: blobPrefix);
+            IEnumerable<BlobItem> blobs = blobContainerClient.GetBlobs(
+                BlobTraits.None, BlobStates.None, blobPrefix, default);
             List<BlobItem> blobList = new List<BlobItem>();
 
             lastKnownBlobSizes.Clear();
