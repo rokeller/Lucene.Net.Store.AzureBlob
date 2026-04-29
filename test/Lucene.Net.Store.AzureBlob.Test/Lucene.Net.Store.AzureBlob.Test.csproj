@@ -21,6 +21,7 @@
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta*"/>
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.*"/>
     <PackageReference Include="Microsoft.ApplicationInsights.DependencyCollector" Version="2.*"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(SystemDependencyVersionWildcard)"/>
     <PackageReference Include="Moq" Version="4.*"/>
   </ItemGroup>
   <ItemGroup>
