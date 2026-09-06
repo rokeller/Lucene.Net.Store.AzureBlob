@@ -7,7 +7,6 @@ using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Lucene.Net.Store
 {

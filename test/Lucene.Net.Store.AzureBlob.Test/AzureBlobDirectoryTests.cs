@@ -35,7 +35,8 @@ namespace Lucene.Net.Store
         {
             BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("sample-file");
             int len = 100 + Utils.Rng.Next(1234);
-            using (Stream stream = blobClient.OpenWrite(true))
+            using (Stream stream = blobClient.OpenWrite(
+                true, null, TestContext.Current.CancellationToken))
             {
                 stream.Write(Utils.GenerateRandomBuffer(len), 0, len);
             }
@@ -217,7 +218,8 @@ namespace Lucene.Net.Store
         {
             BlockBlobClient blobClient = blobContainerClient.GetBlockBlobClient("OpenInputReturnsSeekableInput");
             int len = 32 * 1024;
-            using (Stream stream = blobClient.OpenWrite(true))
+            using (Stream stream = blobClient.OpenWrite(
+                true, null, TestContext.Current.CancellationToken))
             {
                 Utils.WriteRepeatedly(stream, len, "DeadBeef");
             }

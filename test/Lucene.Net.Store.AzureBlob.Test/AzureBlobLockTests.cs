@@ -38,11 +38,12 @@ namespace Lucene.Net.Store.AzureBlob.Test
             theLock = new AzureBlobLock(blobClient, BlobLeaseClientFactory.Default);
 
             Assert.False(theLock.IsLocked());
-            blobLeaseClient.Acquire(TimeSpan.FromSeconds(15) /* minimum allowed */);
+            blobLeaseClient.Acquire(
+                TimeSpan.FromSeconds(15) /* minimum allowed */, null, TestContext.Current.CancellationToken);
             Assert.True(theLock.IsLocked());
-            blobLeaseClient.Renew();
+            blobLeaseClient.Renew(null, TestContext.Current.CancellationToken);
             Assert.True(theLock.IsLocked());
-            blobLeaseClient.Release();
+            blobLeaseClient.Release(null, TestContext.Current.CancellationToken);
             Assert.False(theLock.IsLocked());
         }
 
@@ -54,7 +55,8 @@ namespace Lucene.Net.Store.AzureBlob.Test
             theLock = new AzureBlobLock(blobClient, BlobLeaseClientFactory.Default);
 
             Assert.True(theLock.Obtain());
-            Response<BlobProperties> response = blobClient.GetProperties();
+            Response<BlobProperties> response = blobClient.GetProperties(
+                null, TestContext.Current.CancellationToken);
             Assert.Equal(LeaseStatus.Locked, response.Value.LeaseStatus);
             Assert.Equal(LeaseState.Leased, response.Value.LeaseState);
             Assert.False(theLock.Obtain());

@@ -7,7 +7,6 @@ using Azure.Storage.Blobs;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
-using Xunit.Abstractions;
 using Xunit;
 
 namespace Lucene.Net.Store

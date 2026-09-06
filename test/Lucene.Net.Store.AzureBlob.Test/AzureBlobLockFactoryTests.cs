@@ -31,7 +31,7 @@ namespace Lucene.Net.Store.AzureBlob.Test
             factory = new AzureBlobLockFactory(blobContainerClient);
 
             factory.MakeLock(lockName);
-            Assert.Empty(blobContainerClient.GetBlobs());
+            Assert.Empty(blobContainerClient.GetBlobs(null, TestContext.Current.CancellationToken));
             factory.ClearLock(lockName);
         }
     }
