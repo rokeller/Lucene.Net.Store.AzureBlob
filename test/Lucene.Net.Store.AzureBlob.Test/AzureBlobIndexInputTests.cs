@@ -34,14 +34,16 @@ namespace Lucene.Net.Store
         {
             BlockBlobClient blockBlobClient = blobContainerClient.GetBlockBlobClient("ReadByteThrowsForEof");
 
-            using (Stream uploadStream = blockBlobClient.OpenWrite(true))
+            using (Stream uploadStream = blockBlobClient.OpenWrite(
+                true, null, TestContext.Current.CancellationToken))
             {
                 uploadStream.Write(Utils.GenerateRandomBuffer(len), 0, len);
             }
 
 
             BlobClient blobClient = blobContainerClient.GetBlobClient("ReadByteThrowsForEof");
-            Stream stream = blockBlobClient.OpenRead();
+            Stream stream = blockBlobClient.OpenRead(
+                null, TestContext.Current.CancellationToken);
             input = new AzureBlobIndexInput(blobClient, len, stream);
 
             if (len > 1)

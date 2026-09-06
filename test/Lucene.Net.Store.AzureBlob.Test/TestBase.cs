@@ -3,7 +3,7 @@ using System.Reflection;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
-using Xunit.Sdk;
+using Xunit.v3;
 
 namespace Lucene.Net.Store
 {
@@ -33,13 +33,13 @@ namespace Lucene.Net.Store
         [ThreadStatic]
         private static IOperationHolder<RequestTelemetry> telemetryHolder;
 
-        public override void Before(MethodInfo methodUnderTest)
+        public override void Before(MethodInfo methodUnderTest, IXunitTest test)
         {
             string name = $"{methodUnderTest.DeclaringType.Name}.{methodUnderTest.Name}";
             telemetryHolder = TestBase.CurrentAppInsightsFixture.TelemetryClient.StartOperation<RequestTelemetry>("Test | " + name);
         }
 
-        public override void After(MethodInfo methodUnderTest)
+        public override void After(MethodInfo methodUnderTest, IXunitTest test)
         {
             telemetryHolder?.Dispose();
         }
