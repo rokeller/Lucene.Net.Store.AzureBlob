@@ -67,7 +67,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           reportgenerator \
-            -reports:"TestResults/Temp/coverage.cobertura.xml" \
+            -reports:"TestResults/Temp/coverage.cobertura.*.xml" \
             -targetdir:coverage \
             -reporttypes:"Html_Dark;MarkdownSummaryGithub"
 
