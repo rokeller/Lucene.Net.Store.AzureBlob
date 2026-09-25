@@ -55,7 +55,7 @@ jobs:
           dotnet test $SLN --no-build \
             --configuration Release \
             --coverlet \
-            --coverlet-exclude '[Moq]' \
+            --coverlet-exclude '[Moq]*' \
             --results-directory 'TestResults/Temp'
 
       - name: Install report generator
@@ -69,7 +69,6 @@ jobs:
           reportgenerator \
             -reports:"TestResults/Temp/coverage.cobertura.xml" \
             -targetdir:coverage \
-            -assemblyfilters:-Moq \
             -reporttypes:"Html_Dark;MarkdownSummaryGithub"
 
       - name: Write to Job Summary
